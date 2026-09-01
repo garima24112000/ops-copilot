@@ -23,7 +23,7 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 10 — The agent (LangGraph) (verified live end-to-end: reject path + approve path, real ticket + postmortems)
 - [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
 - [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet hand-built
-- [x] Session 13 — Document-level security (code complete; live two-user demo next)
+- [x] Session 13 — Document-level security (verified live: bob/carol get different runbooks for the same alert)
 - [ ] Session 14 — End-to-end evals — next (generated subset can run now; human subset needs the operator's 10 stubs filled in)
 - [ ] Session 15 — CI workflow written, real CI-fixture baseline established; not run on GitHub (not pushed, per instructions)
 - [x] Session 16 — Terraform (`terraform plan` clean against live cluster; deliberately not applied yet, see note)
@@ -474,7 +474,7 @@ known) and OTel span names aren't meant to be renamed mid-span — the *attribut
 either way. Worth mentioning in the README's honesty section, not worth "fixing" by hiding the
 failover from the span name.
 
-### Session 13 — Document-level security — CODE DONE, live two-user demo pending session 5 data
+### Session 13 — Document-level security — DONE, verified live with two real users
 `security/dls.py`: 5 fixed demo users -> department (`alice`/platform-engineering,
 `bob`/database-reliability, `carol`/networking, `dave`/security-compliance,
 `erin`/observability) — real per-user identity/SSO is explicitly out of scope (see the module
@@ -492,9 +492,22 @@ import time. Changed to construct a fresh client per call (`get_es_client()`), a
 sets before invoking the graph — so the *same process* correctly serves one user's DLS-scoped
 requests and then another's, without threading an ES client through every function signature.
 
-**Not yet run live** — the actual "same alert, two users, different sources" gate needs
-`ops-runbooks` populated with real `department` values (session 5's blocker) to be meaningful;
-minting a key against an empty index proves nothing. Code is written, lint+mypy clean.
+**Gate, run for real with the actual live corpus:** `promop-etcdInsufficientMembers` (the
+exactly-correct runbook for `data/sample_alert.json`, per session 10) is tagged
+`department: database-reliability`. Ran the identical alert as two different users:
+
+```
+python cli.py data/sample_alert.json --user bob   --reject   # bob = database-reliability
+  -> runbook_id: promop-etcdInsufficientMembers   (correct doc, bob's department owns it)
+
+python cli.py data/sample_alert.json --user carol --reject   # carol = networking
+  -> runbook_id: promop-etcdMembersDown           (a different etcd runbook -- carol's
+                                                      department can't see the first one)
+```
+
+Real, different citations for the same alert from two different users, exactly the demo the
+plan asks for. Both users' API keys were minted for real (`security/.user_api_keys.json` now
+has `bob` and `carol` entries — checked the cache has the keys, never the values themselves).
 
 ### Session 16 — Terraform — DONE (index templates, ELSER endpoint, DLS roles+keys; containers deliberately left to docker-compose)
 `infra/`: `elastic/elasticstack` provider (pinned `>= 0.16.0, < 1.0.0`, resolved to 0.16.4 —

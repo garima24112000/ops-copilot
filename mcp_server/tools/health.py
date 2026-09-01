@@ -22,14 +22,17 @@ def _window_to_esql(window: str) -> str:
 
 
 def query_service_health(es: Elasticsearch, service: str, window: str = "1h") -> dict[str, Any]:
+    # `window` is validated against a fixed pattern above (no free-text interpolation); `service`
+    # is untrusted input from the alert payload, so it goes in as an ES|QL query parameter
+    # (`?`) rather than being string-interpolated into the query text.
     esql_window = _window_to_esql(window)
     query = (
         "FROM ops-logs-* "
-        f"| WHERE service == \"{service}\" AND @timestamp > NOW() - {esql_window} "
+        f"| WHERE service == ? AND @timestamp > NOW() - {esql_window} "
         "| STATS count = COUNT(*) BY level "
         "| SORT count DESC"
     )
-    resp = es.esql.query(query=query)
+    resp = es.esql.query(query=query, params=[service])
     columns = [c["name"] for c in resp["columns"]]
     rows = [dict(zip(columns, row, strict=True)) for row in resp["values"]]
     by_level = {row["level"]: row["count"] for row in rows}

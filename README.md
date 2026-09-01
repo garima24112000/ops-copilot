@@ -15,6 +15,8 @@ retrieves them), and it's also the agent's observability backend (every LLM call
 lands in Elastic APM as OpenTelemetry GenAI spans, queried with the same stack the agent
 itself queries).
 
+**3-minute walkthrough:** _(link to be added)_
+
 ## Architecture
 
 ```mermaid
@@ -123,6 +125,8 @@ Three commands, no signup, no credit card, works on a clean clone. `make deploy-
 once first if you're starting from a truly fresh Elasticsearch cluster (see
 `scripts/deploy_elser.py`).
 
+![CI passing on GitHub Actions](docs/images/ci-green.png)
+
 ## Cost and latency
 
 Full write-up: [`docs/cost_and_latency.md`](docs/cost_and_latency.md). Every LLM call goes
@@ -143,6 +147,22 @@ built via the saved-objects API — session 12 in `PROGRESS.md`) plots tokens pe
 latency by span, tool-call frequency, provider mix, and run success rate, all sourced from
 these real spans.
 
+![Kibana dashboard: tokens per run, p95 latency, tool-call frequency, provider mix, run success rate](docs/images/kibana-dashboard.png)
+
+![APM trace showing a chat span and its token/latency attributes](docs/images/apm-trace-tokens.png)
+
+The 460µs `chat` span above is a disk-cache hit from the router (`agent/llm_router.py`), not a
+live provider call — the router's cache-hit path is intentionally near-instant, and reading it
+as real LLM latency would badly understate the true cost of a cold call. The 47s root span is
+dominated by time spent outside its instrumented children, which is a known gap in this
+project's current instrumentation (not every intermediate step between child spans has its own
+span yet), not evidence of real LLM latency of that magnitude. And the `gen_ai.usage.*`
+attributes appear under `numeric_labels.*`/`labels.*` rather than as first-class APM fields
+because APM Server has no built-in mapping for the still-maturing OTel GenAI semantic
+conventions — it falls back to its generic labels mechanism for any attribute it doesn't
+recognize, which is also why the dashboard's aggregations above query `numeric_labels.gen_ai_*`
+directly instead of a dedicated field.
+
 ### A real failure trace, and what it taught me
 
 Querying the live trace data directly (rather than eyeballing Kibana) surfaced something the
@@ -156,6 +176,28 @@ the span *name* in a dashboard list would tell a misleading story about which pr
 a given call. This is exactly the kind of thing a token/latency dashboard without a way to
 drill into individual span attributes would hide, and exactly why this project instruments
 `gen_ai.provider.name` as a separate attribute rather than trusting the span name alone.
+
+## Security: per-user document-level security
+
+Retrieval is scoped per user by real Elasticsearch document-level security (DLS), not an
+application-layer filter bolted on afterward. Each demo user's API key
+(`security/dls.py`, minted via `mint_user_api_key()`) carries a role descriptor that restricts
+`ops-runbooks` to their department with a query the *cluster* enforces
+(`{"query": {"term": {"department": ...}}}`) — the agent process never sees a runbook outside a
+user's department in the first place, rather than seeing it and choosing not to show it.
+
+![Two users, bob and carol, running the same alert through the CLI and grounding in different runbooks](docs/images/dls-two-users.png)
+
+The live result above: the same etcd alert, run through the identical CLI invocation, grounds
+in a different runbook depending on who runs it. `bob` (department `database-reliability`)
+grounds in `promop-etcdInsufficientMembers`; `carol` (department `networking`) is scoped away
+from that runbook entirely and grounds in `promop-etcdMembersDown` instead — a different real
+runbook, not an empty result. Because the two runs ground in different source documents, the
+two agents produce genuinely different hypotheses about the same alert, not just a redacted
+version of the same one. The two runs also took visibly different wall-clock time — 6.13s for
+bob's run versus 0.49s for carol's — caused by the router's disk cache (`agent/llm_router.py`)
+serving carol's run from a cache entry bob's identical LLM calls had already populated; the
+timing difference is a caching artifact of running them back-to-back, not a DLS cost.
 
 ## Engineering notes: what actually went wrong, and how it was found
 
@@ -264,6 +306,14 @@ never that a UI-rendering system can parse, resolve, or query with what was writ
   (`mcp_server/mock_api.py`), not a real ticketing system.
 - **Single-tenant.** Document-level security (`security/dls.py`) restricts retrieval by a
   synthetic `department` field for 5 fixed demo users; there is no real IdP/SSO integration.
+- **Document-level security is enforced on `ops-runbooks` only.** `ops-incidents` is granted
+  unrestricted read for every user's API key, so `find_similar_incidents` can surface incident
+  summaries derived from runbooks outside a user's own department — directly visible in the
+  two-user demo above, where `carol` (scoped away from `promop-etcdInsufficientMembers`) still
+  receives `incident-promop-etcdInsufficientMembers-1` from `find_similar_incidents`. This is a
+  real multi-tenant isolation gap, not a hypothetical one: a complete implementation would apply
+  the same department-based DLS query to `ops-incidents` and `ops-postmortems` that
+  `ops-runbooks` already has.
 - **Free-tier models are weaker at tool selection and instruction-following than frontier
   models.** The alert-generation prompt redesign (engineering note #2) exists specifically
   because a 1B-parameter local model could not reliably juggle multiple simultaneous
@@ -285,3 +335,5 @@ wrong — it's available locally under the same trial license this project alrea
 ## Demo
 
 Shot-by-shot script for a 3-minute screen recording: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+
+**3-minute walkthrough:** _(link to be added)_

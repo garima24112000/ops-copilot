@@ -12,7 +12,7 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 
 - [x] Session 0 — Scaffold and CLAUDE.md
 - [x] Session 1 — Docker stack
-- [ ] Session 2 — ELSER
+- [x] Session 2 — ELSER
 - [ ] Session 3 — Corpus fetch
 - [ ] Session 4 — Alert reverse-generation
 - [ ] Session 5 — Index and ingest
@@ -70,4 +70,33 @@ curl localhost:8200/                      -> {"publish_ready": true, "version": 
 ```
 All three true. Trial license active, `type: trial`, expires 2026-10-01 (30 days from issue) —
 noted so nothing important is left un-exported when it lapses (see plan §12).
+
+### Session 2 — ELSER — DONE
+Verified the current inference API shape against the *live* cluster (not just docs, per
+rule 10) before writing anything: `GET _inference` on a fresh ES 9.5.2 cluster shows it already
+ships a **preconfigured** `.elser-2-elasticsearch` sparse_embedding endpoint
+(`service: "elasticsearch"`, `model_id: ".elser_model_2"`, adaptive_allocations 0-32) — the
+docs page for the older dedicated `PUT .../sparse_embedding/<id> {"service":"elser"}` shape is
+now marked deprecated in favour of this generic, preconfigured one. `scripts/deploy_elser.py`
+uses the preconfigured endpoint if present and only creates a custom one (with the current
+`service: "elasticsearch"` shape) as a fallback for clusters where it's missing.
+
+ELSER on the `elasticsearch` service deploys **lazily** (`min_number_of_allocations: 0`) — it
+does not allocate until first used, so the script forces deployment with one warm-up inference
+call and polls until that call succeeds (deployment took under a minute; needed no separate
+ML-node wait loop since adaptive allocation handled it).
+
+Two real bugs found and fixed by actually running it, not by inspection:
+1. `semantic_text` in ES 9.5.2 does **not** surface the stored sparse vector in `_source`
+   (checked via raw `GET _doc/1` — `_source.body` is just the plain string). Fixed the smoke
+   test to confirm the sparse vector directly via `POST _inference/sparse_embedding/<id>`
+   against the same query text, alongside the semantic search hit.
+2. The inference API's sparse-embedding response key is `embedding`, not `sparse_embedding`
+   (confirmed via raw curl) — fixed the script's key lookup.
+
+**Gate:** smoke test passes. Real output:
+```
+smoke test PASSED: doc '1' matched semantically, score=11.115
+  sparse vector for query has 89 weighted terms, sample: [('payment', 1.8697197), ('crash', 1.6359334), ...]
+```
 

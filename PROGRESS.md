@@ -22,7 +22,7 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 9 — MCP server (verified live via real MCP Inspector: all 5 tools, real search results)
 - [x] Session 10 — The agent (LangGraph) (verified live end-to-end: reject path + approve path, real ticket + postmortems)
 - [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
-- [x] Session 12 — Kibana dashboard (built via saved-objects API, all 5 panels verified against real data, exported to dashboards/)
+- [x] Session 12 — Kibana dashboard (built via saved-objects API; first pass was a false pass on API 200s alone -- 5 real schema/query bugs found once actually opened in a browser, all fixed and re-verified live + via a real export/import round trip, see postmortem in the session log)
 - [x] Session 13 — Document-level security (verified live: bob/carol get different runbooks for the same alert)
 - [x] Session 14 — End-to-end evals — real rerun complete: generated n=20 (0.650 task success, 1.000 tool acc), human n=10 (0.300 task success, 1.000 tool acc), never merged
 - [x] Session 15 — CI green on GitHub (3 consecutive successful runs on `main`, `gh run list` confirmed)
@@ -35,9 +35,12 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 
 **Sessions 0-17: all complete, none blocked.** Session 16 (Terraform) is complete through
 `plan` but deliberately not `apply`d (see its entry below — resource contention with in-flight
-ingest, not a skipped gate). Every other session ran its real gate and passed, including one
-gate that failed on first attempt and was fixed for real rather than worked around (session 6,
-40% → 90%).
+ingest, not a skipped gate). Every other session ran its real gate and passed, including two
+gates that failed on first attempt and were fixed for real rather than worked around: session 6
+(retrieval, 40% → 90%) and session 12 (Kibana dashboard, marked DONE on API 200s that hid 5 real
+schema/query bugs, caught when the operator actually opened it in a browser, fixed and
+re-verified by rendering — see session 12's postmortem in the session log for the full list and
+the lesson: an API 200 proves a write succeeded, not that Kibana's runtime can render it).
 
 **Real numbers, read from `evals/results/` at commit time, never typed from memory:**
 
@@ -599,6 +602,62 @@ returned `400 Bad Request`. Fixed to `client.get(...)`. `make export-dashboards`
 successfully (`import success=True, imported 7 objects`) — the closest round-trip check
 achievable without standing up a second, fresh stack, which this build's time budget doesn't
 have room for.
+
+**Postmortem (2026-09-01): the direct-query verification above was not enough, and the session
+was marked DONE on a false pass.** The operator opened the dashboard in a browser and every
+panel failed with two distinct classes of error. Direct-query verification proved each panel's
+*aggregation logic* was sane against the real data; it never proved Kibana's own runtime could
+actually load and render the saved objects, which is a different thing entirely, and turned out
+to be broken in five separate ways:
+
+1. `build_dashboard.py` never created the `traces-apm-default` data view itself — it hardcoded
+   an id that happened to exist locally because someone had created it out-of-band. On a fresh
+   stack the referenced data view would not exist at all.
+2. Every panel's `kibanaSavedObjectMeta.searchSourceJSON` was missing `indexRefName`. Without
+   it, Kibana cannot tell which entry in a saved object's `references` array is the index
+   pattern at render time, so `esaggs`'s `indexPatternLoad` expression function gets called with
+   no `id` argument at all: `missing argument: [esaggs] > [indexPatternLoad] > indexPatternLoad
+   requires the "id" argument.`
+3. The run-success-rate panel used `filter_ratio`, a TSVB-only aggregation that was never a
+   registered classic-aggs metric type: `Unable to find a registered agg type for
+   "filter_ratio"`.
+4. Fixing 1-3 surfaced a fourth bug: every panel object inside the dashboard's `panelsJSON` was
+   missing an `embeddableConfig` key. Kibana's server-side dashboard-read transform
+   (`get_panel_references.js`) destructures `panel.embeddableConfig` in its legacy
+   `panelRefName` fallback path *before* the later backwards-compatibility step would otherwise
+   backfill it — so a panel missing that key crashed the **whole dashboard**, not just one
+   panel, with `TypeError: Cannot read properties of undefined (reading 'enhancements')`. Root
+   cause was read directly out of the Kibana image's own bundled source
+   (`node_modules/@kbn/dashboard-plugin/server/api/transforms/out/`) rather than guessed.
+5. Fixing 1-4 got the dashboard itself to load, exposing a fifth and sixth bug that only a real
+   render could catch: three panels' KQL queries wildcarded a *quoted* string
+   (`'span.name: "chat*"'`). KQL treats a quoted value as a literal phrase — including the
+   literal `*` character — not a wildcard, so those panels silently rendered "No results found"
+   against data that was actually there. And the p95-latency panel's terms-bucket ordered by a
+   percentiles metric using the bare aggregation id (`"orderBy": "1"`), which Kibana rejects for
+   a multi-value metric (`Invalid aggregation order path [1]`) — it needs the specific
+   percentile suffixed (`"1.95"`).
+
+**Fixed, then verified by the method that should have been used from the start:** deleted the
+dashboard, its 5 visualizations, and the data view; re-ran `scripts/build_dashboard.py` against
+the clean stack; opened `http://localhost:5601/app/dashboards#/view/ops-copilot-overview` in a
+real browser with the time picker pinned to the eval run's actual window
+(`2026-09-01T03:20:00Z`-`03:45:00Z`, covering the real trace timestamps 03:30:33-03:37:16Z —
+now set via `timeRestore`/`timeFrom`/`timeTo` on the dashboard object itself, not left to
+whatever the viewer's default range happens to be) — the browser session was already
+authenticated from an earlier tab in this session, so no password was typed to reach this
+state. All 5 panels rendered real data matching the direct-query numbers above (token line
+chart, latency bar chart dominated by the `chat gemini-flash-latest` span, tool-call and
+provider-mix pie charts matching the exact percentages from the earlier aggregation queries,
+100% success rate). Re-exported only after that passed, then ran the actual round trip the
+operator asked for: deleted every object again, imported from the freshly exported
+`dashboards/ops_copilot_dashboard.ndjson` (not just the API objects), reloaded the browser, and
+confirmed an identical, correct render from the imported artifact.
+
+**Lesson, applied going forward:** an API 200 from a saved-objects PUT proves the write
+succeeded, nothing more — it does not prove Kibana's runtime can parse the object, resolve its
+references, or execute its query. For any saved object meant to render in Kibana's UI, the only
+real verification is opening it and confirming it renders, not the API response that created it.
 
 ### Session 13 — Document-level security — DONE, verified live with two real users
 `security/dls.py`: 5 fixed demo users -> department (`alice`/platform-engineering,

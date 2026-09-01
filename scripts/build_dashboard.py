@@ -5,6 +5,23 @@ Panels: tokens per run over time, p95 latency by span, tool-call frequency, prov
 run success rate -- all against the real traces-apm-default data view, built from the actual
 OTel GenAI spans this project emits (session 11).
 
+Session-12 postmortem: the first pass at this script was marked DONE on the strength of a
+201/200 from every PUT call, which hid five real schema/query bugs that only surfaced when the
+dashboard was actually opened in a browser: (1) the script never created the data view itself,
+it assumed a hardcoded id created out-of-band by clicking around Kibana still existed; (2) every
+panel's `searchSourceJSON` was missing `indexRefName`, so at render time Kibana's SearchSource
+couldn't tell which entry in `references` was the index pattern and called `esaggs`'s
+`indexPatternLoad` with no id at all; (3) the success-rate panel used `filter_ratio`, which is a
+TSVB-only aggregation that was never a registered classic-aggs metric type -- esaggs rejected it
+outright; (4) every panel dict in the dashboard's `panelsJSON` was missing `embeddableConfig`,
+which crashed the whole dashboard (not just one panel) in Kibana's server-side read transform
+with "Cannot read properties of undefined (reading 'enhancements')"; (5) three panels' KQL
+queries wildcarded a *quoted* string (`'"chat*"'`), which KQL treats as a literal phrase
+containing an asterisk rather than a wildcard, so panels that referenced real data silently
+rendered "No results found". An API 200 only proves the object was stored, not that Kibana's
+runtime can parse or query with it; this script is now verified by actually opening the
+dashboard and confirming every panel renders real data, not just that the writes succeeded.
+
 Run: python -m scripts.build_dashboard
 """
 
@@ -17,7 +34,8 @@ import httpx
 
 from common.config import env
 
-DATA_VIEW_ID = "1a0e73f9-7552-4c7e-a2d7-ce93c12b92b6"  # traces-apm-default, created earlier
+DATA_VIEW_TITLE = "traces-apm-default"
+RUNTIME_FIELD_NAME = "is_success"
 
 
 def client() -> httpx.Client:
@@ -26,31 +44,93 @@ def client() -> httpx.Client:
     return httpx.Client(base_url=kibana_url, auth=("elastic", password), headers={"kbn-xsrf": "true"})
 
 
-def put_visualization(c: httpx.Client, obj_id: str, title: str, vis_state: dict[str, Any], query: str) -> None:
+def ensure_data_view(c: httpx.Client) -> str:
+    """Find or create the traces-apm-default data view via the Data View API (not a raw
+    saved-objects PUT) so Kibana actually populates its field list from the live mapping,
+    rather than being handed an empty `fields: []` the way a hand-crafted saved object is."""
+    resp = c.get("/api/data_views")
+    resp.raise_for_status()
+    for dv in resp.json().get("data_view", []):
+        if dv["title"] == DATA_VIEW_TITLE:
+            print(f"  found existing data view {dv['id']!r}")
+            return str(dv["id"])
+
+    resp = c.post(
+        "/api/data_views/data_view",
+        json={
+            "data_view": {
+                "title": DATA_VIEW_TITLE,
+                "name": "APM Traces (ops-copilot)",
+                "timeFieldName": "@timestamp",
+            }
+        },
+    )
+    resp.raise_for_status()
+    data_view_id = str(resp.json()["data_view"]["id"])
+    print(f"  created data view {data_view_id!r}")
+    return data_view_id
+
+
+def ensure_success_runtime_field(c: httpx.Client, data_view_id: str) -> None:
+    """Replacement for the removed `filter_ratio` TSVB agg: a plain, currently-supported
+    Average metric agg over a runtime field that's 1 for a successful transaction and 0
+    otherwise -- averaging 0/1 over the matched transactions is exactly the success rate."""
+    script_source = (
+        "emit(doc.containsKey('event.outcome') && doc['event.outcome'].size() != 0 "
+        "&& doc['event.outcome'].value == 'success' ? 1 : 0)"
+    )
+    resp = c.post(
+        f"/api/data_views/data_view/{data_view_id}/runtime_field",
+        json={
+            "name": RUNTIME_FIELD_NAME,
+            "runtimeField": {"type": "long", "script": {"source": script_source}},
+        },
+    )
+    if resp.status_code == 400 and "already exists" in resp.text:
+        print(f"  runtime field {RUNTIME_FIELD_NAME!r} already exists")
+        return
+    resp.raise_for_status()
+    print(f"  created runtime field {RUNTIME_FIELD_NAME!r}")
+
+
+def put_visualization(
+    c: httpx.Client, obj_id: str, title: str, vis_state: dict[str, Any], query: str, data_view_id: str
+) -> None:
     body = {
         "attributes": {
             "title": title,
             "visState": json.dumps(vis_state),
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({"query": {"query": query, "language": "kuery"}, "filter": []})
+                "searchSourceJSON": json.dumps(
+                    {
+                        "query": {"query": query, "language": "kuery"},
+                        "filter": [],
+                        # Without this, Kibana can't tell which `references` entry is the
+                        # index pattern at render time -- esaggs's indexPatternLoad then gets
+                        # called with no id, producing "requires the id argument".
+                        "indexRefName": "kibanaSavedObjectMeta.searchSourceJSON.index",
+                    }
+                )
             },
         },
         "references": [
             {
-                "id": DATA_VIEW_ID,
+                "id": data_view_id,
                 "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
                 "type": "index-pattern",
             }
         ],
     }
-    resp = c.post(f"/api/saved_objects/visualization/{obj_id}", json=body)
+    resp = c.post(f"/api/saved_objects/visualization/{obj_id}", json=body, params={"overwrite": "true"})
     resp.raise_for_status()
     print(f"  created visualization {obj_id!r}")
 
 
 def main() -> int:
     c = client()
+    data_view_id = ensure_data_view(c)
+    ensure_success_runtime_field(c, data_view_id)
 
     # tokens per run over time (line chart)
     put_visualization(
@@ -144,7 +224,8 @@ def main() -> int:
                 },
             ],
         },
-        query='span.name: "chat*"',
+        query="span.name: chat*",
+        data_view_id=data_view_id,
     )
 
     # p95 latency by span name (bar chart)
@@ -208,11 +289,15 @@ def main() -> int:
                     "enabled": True,
                     "type": "terms",
                     "schema": "segment",
-                    "params": {"field": "span.name", "size": 10, "order": "desc", "orderBy": "1"},
+                    # A percentiles metric is multi-value even with one requested percentile --
+                    # ordering by it needs "<aggId>.<percentile>", not the bare aggId, or esaggs
+                    # rejects it with "Invalid aggregation order path".
+                    "params": {"field": "span.name", "size": 10, "order": "desc", "orderBy": "1.95"},
                 },
             ],
         },
         query="processor.event: span",
+        data_view_id=data_view_id,
     )
 
     # tool-call frequency (pie)
@@ -235,7 +320,8 @@ def main() -> int:
                 },
             ],
         },
-        query='span.name: "execute_tool*"',
+        query="span.name: execute_tool*",
+        data_view_id=data_view_id,
     )
 
     # provider mix (pie)
@@ -258,10 +344,13 @@ def main() -> int:
                 },
             ],
         },
-        query='span.name: "chat*"',
+        query="span.name: chat*",
+        data_view_id=data_view_id,
     )
 
-    # run success rate (metric, filter-ratio)
+    # run success rate (metric). `filter_ratio` is a TSVB-only agg, never a registered
+    # classic-aggs metric type -- replaced with Average over the `is_success` runtime field
+    # (1/0 per matched transaction), which is exactly the same ratio via a supported agg.
     put_visualization(
         c,
         "ops-copilot-success-rate",
@@ -277,7 +366,7 @@ def main() -> int:
                     "useRanges": False,
                     "colorSchema": "Green to Red",
                     "metricColorMode": "None",
-                    "colorsRange": [{"from": 0, "to": 10000}],
+                    "colorsRange": [{"from": 0, "to": 1}],
                     "labels": {"show": True},
                     "invertColors": False,
                     "style": {"bgFill": "#000", "bgColor": False, "labelColor": False, "subText": "", "fontSize": 60},
@@ -287,27 +376,52 @@ def main() -> int:
                 {
                     "id": "1",
                     "enabled": True,
-                    "type": "filter_ratio",
+                    "type": "avg",
                     "schema": "metric",
-                    "params": {
-                        "numeratorLabel": "successful runs",
-                        "denominatorLabel": "all runs",
-                        "numerator": {"query": "event.outcome: success", "language": "kuery"},
-                        "denominator": {"query": "*", "language": "kuery"},
-                    },
+                    "params": {"field": RUNTIME_FIELD_NAME, "customLabel": "success rate"},
                 }
             ],
         },
         query="processor.event: transaction and transaction.name: invoke_agent*",
+        data_view_id=data_view_id,
     )
 
-    # dashboard referencing all 5 panels
+    # dashboard referencing all 5 panels. Every panel needs an explicit `embeddableConfig`
+    # (even empty) -- Kibana's server-side read transform destructures `panel.embeddableConfig`
+    # in its legacy panelRefName fallback path *before* panelBwc() would otherwise backfill it,
+    # so a panel missing this key crashes the whole dashboard load with "Cannot read properties
+    # of undefined (reading 'enhancements')", not just that one panel.
     panels = [
-        {"panelIndex": "1", "gridData": {"x": 0, "y": 0, "w": 24, "h": 15, "i": "1"}, "type": "visualization"},
-        {"panelIndex": "2", "gridData": {"x": 24, "y": 0, "w": 24, "h": 15, "i": "2"}, "type": "visualization"},
-        {"panelIndex": "3", "gridData": {"x": 0, "y": 15, "w": 16, "h": 15, "i": "3"}, "type": "visualization"},
-        {"panelIndex": "4", "gridData": {"x": 16, "y": 15, "w": 16, "h": 15, "i": "4"}, "type": "visualization"},
-        {"panelIndex": "5", "gridData": {"x": 32, "y": 15, "w": 16, "h": 15, "i": "5"}, "type": "visualization"},
+        {
+            "panelIndex": "1",
+            "gridData": {"x": 0, "y": 0, "w": 24, "h": 15, "i": "1"},
+            "type": "visualization",
+            "embeddableConfig": {},
+        },
+        {
+            "panelIndex": "2",
+            "gridData": {"x": 24, "y": 0, "w": 24, "h": 15, "i": "2"},
+            "type": "visualization",
+            "embeddableConfig": {},
+        },
+        {
+            "panelIndex": "3",
+            "gridData": {"x": 0, "y": 15, "w": 16, "h": 15, "i": "3"},
+            "type": "visualization",
+            "embeddableConfig": {},
+        },
+        {
+            "panelIndex": "4",
+            "gridData": {"x": 16, "y": 15, "w": 16, "h": 15, "i": "4"},
+            "type": "visualization",
+            "embeddableConfig": {},
+        },
+        {
+            "panelIndex": "5",
+            "gridData": {"x": 32, "y": 15, "w": 16, "h": 15, "i": "5"},
+            "type": "visualization",
+            "embeddableConfig": {},
+        },
     ]
     panel_refs = [
         ("panel_1", "ops-copilot-tokens-per-run"),
@@ -330,14 +444,22 @@ def main() -> int:
             "title": "Ops Copilot Overview",
             "description": description,
             "panelsJSON": json.dumps(panels),
-            "timeRestore": False,
+            # Pinned, not a relative window: this dashboard's real data is a fixed handful of
+            # spans from a specific demo run (2026-09-01, ~03:30:33-03:37:16 UTC), not a live
+            # stream -- a relative "last 15 minutes" default would show empty panels the moment
+            # anyone opens this outside that window.
+            "timeRestore": True,
+            "timeFrom": "2026-09-01T03:20:00.000Z",
+            "timeTo": "2026-09-01T03:45:00.000Z",
             "kibanaSavedObjectMeta": {"searchSourceJSON": dashboard_search_source},
         },
         "references": [
             {"id": obj_id, "name": ref_name, "type": "visualization"} for ref_name, obj_id in panel_refs
         ],
     }
-    resp = c.post("/api/saved_objects/dashboard/ops-copilot-overview", json=dashboard_body)
+    resp = c.post(
+        "/api/saved_objects/dashboard/ops-copilot-overview", json=dashboard_body, params={"overwrite": "true"}
+    )
     resp.raise_for_status()
     print("  created dashboard 'ops-copilot-overview'")
 

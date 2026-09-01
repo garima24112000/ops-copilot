@@ -160,7 +160,7 @@ drill into individual span attributes would hide, and exactly why this project i
 ## Engineering notes: what actually went wrong, and how it was found
 
 This project's discipline throughout was: investigate suspicious numbers instead of reporting
-them, and never weaken a gate to make it pass. Four real incidents, in the order they were hit:
+them, and never weaken a gate to make it pass. Five real incidents, in the order they were hit:
 
 **1. ELSER bulk-indexing throughput collapsed under the default ML memory sizing.**
 `semantic_text` fields run ELSER inference synchronously as part of the write path. Bulk
@@ -204,6 +204,33 @@ container (Compose doesn't know or care that `$l` was meant for the container's 
 with a bash-builtins-only check (`/dev/tcp` for the raw socket, `[[ == ]]` for the string
 match, `$$l` to escape the variable past Compose's interpolation layer). Confirmed live:
 `docker ps` now reports `ops-copilot-apm ... (healthy)`.
+
+**5. The Kibana dashboard was marked done on API 200s that hid five real rendering bugs.**
+`scripts/build_dashboard.py` builds the dashboard and its 5 panels entirely through the
+saved-objects API. The first pass was verified by re-running each panel's aggregation directly
+against Elasticsearch and confirming sane numbers — a real check, but the wrong one: it proves
+the aggregation logic is sane, not that Kibana's own runtime can load and render the saved
+objects. Opening it in a browser found the gap immediately: every panel failed. Fixing it
+surfaced five distinct bugs, three visible from the first error message and two more that only
+appeared once the earlier ones were cleared: (1) the script never created its data view, it
+assumed a hardcoded id that happened to exist locally; (2) every panel's `searchSourceJSON` was
+missing `indexRefName`, so Kibana couldn't resolve which saved-object reference was the index
+pattern (`indexPatternLoad requires the "id" argument`); (3) the success-rate panel used
+`filter_ratio`, a TSVB-only aggregation never registered for classic-aggs visualizations —
+replaced with a plain `avg` over a runtime field that's 1 for a successful run and 0 otherwise;
+(4) every panel's `embeddableConfig` key was missing, which crashed the *entire dashboard*
+(not just one panel) in Kibana's server-side read transform, root-caused by reading the
+transform source directly out of the Kibana image rather than guessing; (5) three panels
+wildcarded a *quoted* KQL string (`'span.name: "chat*"'`), which KQL parses as a literal phrase
+containing an asterisk rather than a wildcard — those panels silently rendered "No results
+found" against data that was actually there, and a terms bucket ordered by a percentiles metric
+using a bare aggregation id, which Kibana rejects for a multi-value metric. Verified this time
+by the method that should have been used the first time: delete everything, rebuild from a
+clean stack, open it in a real browser with the time picker pinned to the eval data's actual
+window, confirm all 5 panels render real data — then delete again and confirm the exported
+`dashboards/ops_copilot_dashboard.ndjson` reproduces the same working dashboard via the actual
+import path, not just the live API objects. The lesson: an API 200 proves a write succeeded,
+never that a UI-rendering system can parse, resolve, or query with what was written.
 
 ## Honest limitations
 

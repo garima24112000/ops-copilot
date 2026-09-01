@@ -23,100 +23,100 @@
 tasks:
   - id: human-01
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "etcd"
+      severity: "critical"
+      metric: "etcd_server_has_leader"
+      message: "2 of 3 members reporting no leader for 90s; writes queuing, API latency climbing in gprd"
+    expected_runbook_id: "promop-etcdNoLeader"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health]
+    notes: "No etcd data in Loghub; expect diagnosis_confirmed false"
 
   - id: human-02
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "kubernetes"
+      severity: "warning"
+      metric: "kube_pod_container_resource_requests_cpu_cores"
+      message: "CPU requests at 112% of allocatable across gprd-us-east1; single node loss would leave pods unschedulable"
+    expected_runbook_id: "promop-KubeCPUOvercommit"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Capacity-planning alert, not an outage; ticket is the right action"
 
   - id: human-03
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "alertmanager"
+      severity: "warning"
+      metric: "alertmanager_config_last_reload_successful"
+      message: "Reload flag stuck at 0 for 12m on alertmanager-main-1; config-reloader sidecar restarting in a loop"
+    expected_runbook_id: "promop-AlertmanagerFailedReload"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Runbook warns against deleting pods; tests whether grounding survives into the action"
 
   - id: human-04
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "kube-apiserver"
+      severity: "critical"
+      metric: "apiserver_client_certificate_expiration_seconds"
+      message: "Shortest-lived client cert under 18h remaining for controller-manager serviceaccount in gstg"
+    expected_runbook_id: "promop-KubeClientCertificateExpiration"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Time-bounded, not yet broken; correct action is a ticket, not a restart"
 
   - id: human-05
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "node"
+      severity: "warning"
+      metric: "node_network_up"
+      message: "eth0 on node-gprd-4 changed operstate 14 times in 5m; NFS mounts intermittently stalling"
+    expected_runbook_id: "promop-NodeNetworkInterfaceFlapping"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Hardware-adjacent; no automated remediation is appropriate"
 
   - id: human-06
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "kubernetes"
+      severity: "warning"
+      metric: "kube_deployment_status_replicas_available"
+      message: "registry deployment holding 3 available against spec of 8 for 22m; rollout not progressing"
+    expected_runbook_id: "promop-KubeDeploymentReplicasMismatch"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Straightforward match; a baseline case against the harder ones"
 
   - id: human-07
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "prometheus"
+      severity: "warning"
+      metric: "up"
+      message: "Scrape failures across several endpoints in gprd; gaps appearing in multiple dashboards"
+    expected_runbook_id: "promop-TargetDown"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "INTENDED HARD — deliberately vague, could plausibly match many runbooks"
 
   - id: human-08
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "web"
+      severity: "warning"
+      metric: "apdex_ratio"
+      message: "User-facing latency degraded on the web fleet; error budget burning faster than projected"
+    expected_runbook_id: "gitlab-alerts-ApdexSLOViolation"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "INTENDED HARD — generic SLO language; also tests cross-corpus retrieval into GitLab docs"
 
   - id: human-09
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "blackbox"
+      severity: "critical"
+      metric: "probe_success"
+      message: "4 of 12 external endpoints failing synthetic checks from the us-east prober for 10m"
+    expected_runbook_id: "gitlab-blackbox-BlackboxProbeFailures"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "GitLab-sourced doc with a different structure to the Prometheus templates"
 
   - id: human-10
     alert:
-      service: ""
-      severity: ""
-      metric: ""
-      message: ""
-    expected_runbook_id: ""
-    expected_tool_sequence: []
-    notes: ""
+      service: "ai-gateway"
+      severity: "critical"
+      metric: "upstream_5xx_rate"
+      message: "Primary model upstream returning 503s; traffic shedding to secondary, p95 up 3x"
+    expected_runbook_id: "gitlab-ai-gateway-llm-provider-failover"
+    expected_tool_sequence: [search_runbooks, find_similar_incidents, query_service_health, create_ticket]
+    notes: "Mirrors this project's own router failover; good video material"

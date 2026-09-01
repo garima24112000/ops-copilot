@@ -1,0 +1,6 @@
+.env
+__pycache__/
+.venv/
+data/*.jsonl
+*.log
+.claude/settings.local.json

@@ -1,0 +1,229 @@
+# Generated end-to-end golden set (session 14) -- reverse-generated alerts from data/alerts.jsonl,
+# same source and same LLM-generated-query bias as the retrieval ablation. Reported as a
+# SEPARATE subset from golden_set_human.yaml, never merged (CLAUDE.md rule).
+tasks:
+- id: gen-01
+  alert:
+    service: apiserver_flowcontrol
+    severity: critical
+    metric: apiserver_flowcontrol_rejected_requests_total
+    message: Threshold exceeded. 20% of incoming requests terminated, affecting client
+      interaction and in-cluster services.
+  expected_runbook_id: promop-KubeAPITerminatedRequests
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-02
+  alert:
+    service: tenancy-cell-provision
+    severity: warning
+    metric: cell-provision-rates
+    message: 'cell-provision-rates: cell provisioning rate: 0.05% above expected'
+  expected_runbook_id: gitlab-provisioning
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-03
+  alert:
+    service: prod-app
+    severity: warning
+    metric: apdex_score
+    message: threshold exceeded by 2%
+  expected_runbook_id: gitlab-ApdexSLOViolation
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-04
+  alert:
+    service: etcd
+    severity: warning
+    metric: leadership-latency
+    message: etcd leader latency > 1 minute
+  expected_runbook_id: promop-etcdNoLeader
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-05
+  alert:
+    service: atlas-service
+    severity: warning
+    metric: response_time
+    message: response_time < 0.5s
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-06
+  alert:
+    service: gstg-bastion
+    severity: critical
+    metric: request latency
+    message: 'threshold exceeded: 200ms, rate: 1 requests/s, restarts: 0, error count:
+      0'
+  expected_runbook_id: gitlab-gstg-bastions
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-07
+  alert:
+    service: cell-automated-test
+    severity: info
+    metric: requests_per_second
+    message: <1 request/s <300ms delay>
+  expected_runbook_id: gitlab-qa
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-08
+  alert:
+    service: camoproxy
+    severity: warning
+    metric: requests_per_second
+    message: Camoproxy restarted after 3 instances due to high latency.
+  expected_runbook_id: gitlab-camoproxy
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-09
+  alert:
+    service: gitlab
+    severity: info
+    metric: log_rate
+    message: 1.4 log/sec
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-10
+  alert:
+    service: ci-pipeline
+    severity: info
+    metric: infrequent_failures
+    message: Infrequent failures due to infrastructure issues exceed SLO burn rate
+      threshold
+  expected_runbook_id: gitlab-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-11
+  alert:
+    service: atlas-web-ui
+    severity: info
+    metric: accesses_per_minute
+    message: 1Password Production vault accessed 5000 times in 1m
+  expected_runbook_id: gitlab-webui
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-12
+  alert:
+    service: engineering
+    severity: info
+    metric: cell-environment-assessment-rate
+    message: Test environment assessment rate > 0.05
+  expected_runbook_id: gitlab-infra-development
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-13
+  alert:
+    service: pipeline-creation
+    severity: warning
+    metric: queue-congestion-rate
+    message: Queue congestion detected, pipeline creation rates exceeded threshold.
+  expected_runbook_id: gitlab-CiOrchestrationServicePipelineCreationSidekiqSLOViolation
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-14
+  alert:
+    service: gitlab-updates
+    severity: warning
+    metric: link-resolution-failure-rate
+    message: 'link-resolution-failure-rate < 1%: 5 restarts, 3 errors'
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-15
+  alert:
+    service: prometheus-alerting
+    severity: critical
+    metric: latency
+    message: Processor utilization is above 80%
+  expected_runbook_id: gitlab-blackbox-git-exporter
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-16
+  alert:
+    service: backup-and-restore
+    severity: info
+    metric: backup-script-execution-time
+    message: 'backup script execution time: 30ms'
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-17
+  alert:
+    service: atlantis
+    severity: info
+    metric: log_rate
+    message: atlantis log rate is low (5 requests/sec)
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-18
+  alert:
+    service: bastion-hosts
+    severity: info
+    metric: ssh-config-configured
+    message: ssh-config successfully configured on bastion host. Host key is being
+      managed.
+  expected_runbook_id: gitlab-gprd-bastions
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-19
+  alert:
+    service: ci-cd-pipeline
+    severity: warning
+    metric: write_attempts_to_s3
+    message: Increase write attempts to S3 to prevent stale file handles from being
+      cleaned up.
+  expected_runbook_id: gitlab-ci_too_many_archiving_trace_failures
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health
+- id: gen-20
+  alert:
+    service: camoproxy
+    severity: warning
+    metric: restarts_within_last_5m
+    message: 2 errors in last 5m
+  expected_runbook_id: gitlab-README
+  expected_tool_sequence:
+  - search_runbooks
+  - find_similar_incidents
+  - query_service_health

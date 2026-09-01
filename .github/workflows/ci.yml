@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.5.2
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "true"
+          xpack.license.self_generated.type: basic
+          ELASTIC_PASSWORD: ci_test_password
+          ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf -u elastic:ci_test_password http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 30
+
+    env:
+      ELASTICSEARCH_URL: http://localhost:9200
+      ELASTIC_PASSWORD: ci_test_password
+      # Zero live API calls: replay-only fixtures, per CLAUDE.md.
+      LLM_ROUTER_MODE: replay
+      HF_HUB_OFFLINE: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Wait for Elasticsearch
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf -u elastic:$ELASTIC_PASSWORD $ELASTICSEARCH_URL >/dev/null && break
+            sleep 2
+          done
+          curl -u elastic:$ELASTIC_PASSWORD $ELASTICSEARCH_URL
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Type check (mypy)
+        run: mypy agent mcp_server common scripts ingest evals cli.py security
+
+      - name: Unit tests
+        run: pytest tests/ -q
+
+      - name: Retrieval eval — CI-safe fixtures (no ML node, no API calls)
+        run: python -m evals.retrieval.run_ci_ablation

@@ -1,0 +1,122 @@
+# Human-authored end-to-end golden set (session 14).
+#
+# Per CLAUDE.md / the operator's instructions: Claude Code did NOT write these tasks. Only a
+# human should. Writing them yourself defeats the point -- a model-authored eval set tends to
+# ask questions the retriever already answers well, which makes the reported numbers
+# meaningless. Fill in the 10 stubs below with real, hand-picked alert scenarios (skim
+# data/runbooks.jsonl for ones you know well, or invent a plausible one) BEFORE running
+# `make e2e-eval` -- run_eval.py reports this subset separately from the generated one and
+# will mark it PENDING with a note until every stub below is filled in.
+#
+# Field guide:
+#   id                    - short unique slug, e.g. "human-01"
+#   alert                 - the alert payload exactly as cli.py / agent/state.py's Alert
+#                           TypedDict expects: service, severity, metric, message
+#   expected_runbook_id   - the `id` field from data/runbooks.jsonl you'd want the agent to
+#                           retrieve and ground its answer in (open the file, pick a real one)
+#   expected_tool_sequence - the MCP tool names you'd expect the agent to call, in order, e.g.
+#                           [search_runbooks, find_similar_incidents, query_service_health]
+#                           (approve/act tools like restart_service or create_ticket only if
+#                           you'd expect that alert to actually trigger one)
+#   notes                 - optional: why you picked this one / what makes it a good test
+
+tasks:
+  - id: human-01
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-02
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-03
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-04
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-05
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-06
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-07
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-08
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-09
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""
+
+  - id: human-10
+    alert:
+      service: ""
+      severity: ""
+      metric: ""
+      message: ""
+    expected_runbook_id: ""
+    expected_tool_sequence: []
+    notes: ""

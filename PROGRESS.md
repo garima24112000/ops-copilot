@@ -31,6 +31,59 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 
 ---
 
+## Final summary (2026-09-01)
+
+**Sessions 0-17: all complete, none blocked.** Session 16 (Terraform) is complete through
+`plan` but deliberately not `apply`d (see its entry below — resource contention with in-flight
+ingest, not a skipped gate). Every other session ran its real gate and passed, including one
+gate that failed on first attempt and was fixed for real rather than worked around (session 6,
+40% → 90%).
+
+**Real numbers, read from `evals/results/` at commit time, never typed from memory:**
+
+Retrieval ablation (`evals/results/ablation.json`, 147 pairs, zero LLM calls):
+
+| strategy   | recall@5 | nDCG@10 | p95 latency |
+|------------|----------|---------|-------------|
+| BM25 only  | 0.837    | 0.744   | 4.2 ms      |
+| Dense only | 0.748    | 0.656   | 5.9 ms      |
+| ELSER only | 0.884    | 0.785   | 663.0 ms    |
+| Hybrid RRF | 0.864    | 0.791   | 19.7 ms     |
+
+End-to-end (`evals/results/e2e_eval.json`, generated and human subsets never merged):
+
+| subset    | n  | task success | tool-selection accuracy | mean tokens/run | p95 latency |
+|-----------|----|--------------|--------------------------|------------------|-------------|
+| generated | 20 | 0.650        | 1.000                    | 695              | 77.17 s     |
+| human     | 10 | 0.300        | 1.000                    | 787              | 48.08 s     |
+
+**Prioritized follow-ups**, most valuable first:
+1. **Raise generated-subset task success above 0.650.** The dominant failure mode (near-miss
+   within the correct service directory — see session 14's entry) suggests the retriever is
+   usually *right about the service* and wrong about which doc in it; a re-ranking or
+   doc-granularity change targeted at that specific failure mode is more likely to move the
+   number than a broader retrieval change.
+2. **`terraform apply` the DLS/ELSER-endpoint infrastructure** (session 16) once it can run
+   without competing with a live ingest for ML memory headroom, so the Terraform path is
+   actually exercised end-to-end and not just `plan`-verified.
+3. **Test the `query_service_health` confirm path.** It's structurally untested in this corpus
+   (Loghub log systems and runbook systems are disjoint — see README limitations) — would need
+   either a synthetic overlapping-system fixture or a documented decision to leave it untested.
+4. **Fix the one malformed id** (`gitlab-README.md-README`) surviving from the session-5/6
+   collision fix, and audit for siblings.
+5. **Expand the human golden set** beyond 10 tasks — its current n makes the 0.300 task-success
+   rate move 10 points per task, which is noisier than the generated subset's 20-task rate
+   warrants comparing directly.
+
+**Uncertainties / honest caveats**, restated from README for a project-tracker audience:
+the Prometheus corpus is alphabetically truncated at 40 docs, not sampled; the generated eval
+subset carries known lexical-overlap bias by construction, and the human subset's 3
+model-drafted tasks can't fully rule out the same bias; Loghub log systems and runbook systems
+never overlap in this corpus, so the "confirm via logs" tool path has zero real test coverage;
+and the ELSER trial license (session 1) expires 2026-10-01 — anything ELSER-dependent stops
+working after that date without a relicense or a switch to the dense-only path CLAUDE.md
+already names as the RAM-constrained fallback.
+
 ## Context-loss note (2026-09-01)
 
 This file went stale for a stretch: sessions 14/15 code, a CI-driven `apm-server` healthcheck

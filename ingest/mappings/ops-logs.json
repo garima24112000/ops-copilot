@@ -1,0 +1,19 @@
+{
+  "_comment": "index template for the ops-logs-* data stream, applied by ingest/load.py",
+  "index_patterns": ["ops-logs-*"],
+  "data_stream": {},
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "service": { "type": "keyword" },
+        "level": { "type": "keyword" },
+        "message": { "type": "text" }
+      }
+    }
+  }
+}

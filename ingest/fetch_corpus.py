@@ -22,6 +22,7 @@ import time
 import urllib.parse
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -106,7 +107,7 @@ def fetch_gitlab_runbooks(limit: int) -> list[Runbook]:
 
     md_paths = sorted(set(md_paths))
     runbooks: list[Runbook] = []
-    for i, path in enumerate(md_paths):
+    for path in md_paths:
         if len(runbooks) >= limit:
             break
         encoded = urllib.parse.quote(path, safe="")
@@ -179,9 +180,9 @@ def fetch_prometheus_operator_runbooks(limit: int) -> list[Runbook]:
     return runbooks
 
 
-def fetch_loghub_subset() -> list[dict]:
+def fetch_loghub_subset() -> list[dict[str, Any]]:
     print(f"fetching Loghub subset from {len(LOGHUB_SYSTEMS)} systems...")
-    docs: list[dict] = []
+    docs: list[dict[str, Any]] = []
     for system in LOGHUB_SYSTEMS:
         url = f"{LOGHUB_RAW}/{system}/{system}_2k.log"
         resp = client.get(url)
@@ -213,7 +214,7 @@ def fetch_loghub_subset() -> list[dict]:
     return docs
 
 
-def write_jsonl(path: Path, rows: list) -> None:
+def write_jsonl(path: Path, rows: list[Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as f:
         for row in rows:

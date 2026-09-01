@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "run_id": { "type": "keyword" },
+      "eval_type": { "type": "keyword" },
+      "strategy": { "type": "keyword" },
+      "subset": { "type": "keyword" },
+      "metric": { "type": "keyword" },
+      "score": { "type": "float" },
+      "git_sha": { "type": "keyword" },
+      "@timestamp": { "type": "date" }
+    }
+  }
+}

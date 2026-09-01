@@ -13,10 +13,10 @@ down:
 	docker compose down
 
 deploy-elser:
-	.venv/bin/python scripts/deploy_elser.py
+	.venv/bin/python -m scripts.deploy_elser
 
 ingest:
-	.venv/bin/python ingest/load.py
+	.venv/bin/python -m ingest.load
 
 demo:
 	.venv/bin/python cli.py data/sample_alert.json
@@ -24,16 +24,16 @@ demo:
 evals: retrieval-eval e2e-eval
 
 retrieval-eval:
-	.venv/bin/python evals/retrieval/run_ablation.py
+	.venv/bin/python -m evals.retrieval.run_ablation
 
 e2e-eval:
-	.venv/bin/python evals/end_to_end/run_eval.py
+	.venv/bin/python -m evals.end_to_end.run_eval
 
 export-dashboards:
-	.venv/bin/python scripts/export_dashboards.py
+	.venv/bin/python -m scripts.export_dashboards
 
 import-dashboards:
-	.venv/bin/python scripts/import_dashboards.py
+	.venv/bin/python -m scripts.import_dashboards
 
 lint:
 	.venv/bin/ruff check .

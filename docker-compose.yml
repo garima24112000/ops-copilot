@@ -14,6 +14,11 @@ services:
       - xpack.security.transport.ssl.enabled=false
       - xpack.license.self_generated.type=trial
       - xpack.ml.enabled=true
+      # Default ML memory budget (30% of node memory minus JVM heap) left too little headroom
+      # for ELSER to scale past 1 allocation on this host, even though the container has
+      # plenty of spare RAM -- this tells ES to size the ML budget off the container's actual
+      # available memory instead of a fixed guess.
+      - xpack.ml.use_auto_machine_memory_percent=true
       - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
       - bootstrap.memory_lock=true
     ulimits:

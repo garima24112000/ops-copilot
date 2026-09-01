@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "title": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+      "body": { "type": "text" },
+      "body_semantic": {
+        "type": "semantic_text",
+        "inference_id": "ops-copilot-elser"
+      },
+      "body_dense": {
+        "type": "dense_vector",
+        "dims": 384,
+        "index": true,
+        "similarity": "cosine"
+      },
+      "service": { "type": "keyword" },
+      "department": { "type": "keyword" },
+      "source_url": { "type": "keyword" }
+    }
+  }
+}

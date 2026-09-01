@@ -1,0 +1,6 @@
+{
+  "service": "etcd",
+  "severity": "critical",
+  "metric": "etcd_cluster_health",
+  "message": "Not enough instances available, preventing Kubernetes and OpenShift API functions correctly."
+}

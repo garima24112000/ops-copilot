@@ -9,5 +9,9 @@ venv/
 *.log
 .claude/settings.local.json
 .DS_Store
+.router_cache/
+mcp_server/mock_api_state.json
+security/.user_api_keys.json
 dist/
 build/
+infra/.terraform/

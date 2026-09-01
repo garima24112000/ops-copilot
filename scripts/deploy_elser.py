@@ -4,11 +4,18 @@ retrieve it semantically.
 
 Verified against a live Elasticsearch 9.5.2 cluster on 2026-08-31 (session 2): current ES
 ships a *preconfigured* `.elser-2-elasticsearch` inference endpoint
-(service="elasticsearch", model_id=".elser_model_2", adaptive_allocations enabled 0-32) —
-the older dedicated PUT .../sparse_embedding/<id> {"service": "elser", ...} shape still works
-but is documented as deprecated in favour of the generic endpoint. This script uses the
-preconfigured endpoint if present, and falls back to creating one with the current
-"service": "elasticsearch" shape if it is not (e.g. a cluster where ML was disabled at boot).
+(service="elasticsearch", model_id=".elser_model_2", adaptive_allocations enabled 0-32) — the
+older dedicated PUT .../sparse_embedding/<id> {"service": "elser", ...} shape still works but
+is documented as deprecated in favour of the generic endpoint.
+
+This script does NOT use that preconfigured endpoint, though. Its adaptive_allocations budget
+was capped at a single allocation by ES's default ML memory sizing (30% of node memory minus
+JVM heap), which throughput-starves bulk-loading a whole runbook corpus through it -- confirmed
+empirically: bulk-indexing 120+190 documents through 1 allocation queued 250+ pending inference
+requests and was still nowhere near done after 15+ minutes. Instead this deploys a dedicated,
+explicitly-sized endpoint (`ops-copilot-elser`, default 6 allocations) and REQUIRES
+`xpack.ml.use_auto_machine_memory_percent=true` in docker-compose.yml's Elasticsearch service
+(already set) so there's enough ML memory headroom for more than one allocation to fit.
 """
 
 from __future__ import annotations
@@ -16,42 +23,42 @@ from __future__ import annotations
 import sys
 import time
 
-from elasticsearch import NotFoundError
+from elasticsearch import Elasticsearch, NotFoundError
 
 from common.es_client import get_es_client
 
-ELSER_INFERENCE_ID = ".elser-2-elasticsearch"
+ELSER_INFERENCE_ID = "ops-copilot-elser"
+NUM_ALLOCATIONS = 6
 SMOKE_INDEX = "ops-copilot-elser-smoke-test"
 POLL_INTERVAL_S = 5
 POLL_TIMEOUT_S = 600
 
 
-def ensure_endpoint(es) -> str:
+def ensure_endpoint(es: Elasticsearch) -> str:
     try:
         es.inference.get(inference_id=ELSER_INFERENCE_ID, task_type="sparse_embedding")
-        print(f"inference endpoint {ELSER_INFERENCE_ID!r} already exists (preconfigured)")
+        print(f"inference endpoint {ELSER_INFERENCE_ID!r} already exists")
         return ELSER_INFERENCE_ID
     except NotFoundError:
         pass
 
-    custom_id = "ops-elser"
-    print(f"no preconfigured ELSER endpoint found, creating {custom_id!r}")
+    print(f"creating {ELSER_INFERENCE_ID!r} ({NUM_ALLOCATIONS} allocations)...")
     es.inference.put(
         task_type="sparse_embedding",
-        inference_id=custom_id,
+        inference_id=ELSER_INFERENCE_ID,
         inference_config={
             "service": "elasticsearch",
             "service_settings": {
-                "num_allocations": 1,
+                "num_allocations": NUM_ALLOCATIONS,
                 "num_threads": 1,
                 "model_id": ".elser_model_2",
             },
         },
     )
-    return custom_id
+    return ELSER_INFERENCE_ID
 
 
-def wait_for_allocation(es, inference_id: str) -> None:
+def wait_for_allocation(es: Elasticsearch, inference_id: str) -> None:
     """ELSER on the elasticsearch service deploys lazily on first use. Trigger one inference
     call to force deployment, then poll trained model stats until allocation is ready."""
     print("triggering deployment with a test inference call...")
@@ -73,7 +80,7 @@ def wait_for_allocation(es, inference_id: str) -> None:
     raise TimeoutError(f"ELSER did not become allocated within {POLL_TIMEOUT_S}s: {last_err}")
 
 
-def smoke_test(es, inference_id: str) -> None:
+def smoke_test(es: Elasticsearch, inference_id: str) -> None:
     print(f"running semantic_text smoke test against index {SMOKE_INDEX!r}...")
     es.indices.delete(index=SMOKE_INDEX, ignore_unavailable=True)
     es.indices.create(

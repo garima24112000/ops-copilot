@@ -1,0 +1,339 @@
+{
+  "generated_at": "2026-09-01T03:54:52.000Z",
+  "git_sha": "6af2d03780e8a023c87276bef9485b5f3b0407a5",
+  "subsets": {
+    "generated": {
+      "status": "complete",
+      "summary": {
+        "n_tasks": 20,
+        "task_success_rate": 0.05,
+        "tool_selection_accuracy": 1.0,
+        "mean_tokens_per_run": 749.85,
+        "p95_latency_s": 164.4248230457306
+      },
+      "tasks": [
+        {
+          "id": "gen-01",
+          "task_success": true,
+          "expected_runbook_id": "promop-KubeAPITerminatedRequests",
+          "actual_runbook_id": "promop-KubeAPITerminatedRequests",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 411,
+          "latency_s": 164.02649092674255
+        },
+        {
+          "id": "gen-02",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-provisioning",
+          "actual_runbook_id": "gitlab-cells-provisioning",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 996,
+          "latency_s": 169.44837713241577
+        },
+        {
+          "id": "gen-03",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-ApdexSLOViolation",
+          "actual_runbook_id": "gitlab-ci-orchestration-CiOrchestrationServiceJobQueueDurationApdexSLOViolation",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 792,
+          "latency_s": 112.28441381454468
+        },
+        {
+          "id": "gen-04",
+          "task_success": false,
+          "expected_runbook_id": "promop-etcdNoLeader",
+          "actual_runbook_id": "promop-etcdHighFsyncDurations",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 794,
+          "latency_s": 103.22450113296509
+        },
+        {
+          "id": "gen-05",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "gitlab-ai-gateway-code-suggestions",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 378,
+          "latency_s": 164.4248230457306
+        },
+        {
+          "id": "gen-06",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-gstg-bastions",
+          "actual_runbook_id": "promop-KubeAPIErrorBudgetBurn",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 570,
+          "latency_s": 160.38204717636108
+        },
+        {
+          "id": "gen-07",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-qa",
+          "actual_runbook_id": "gitlab-ai-gateway-code-suggestions",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 706,
+          "latency_s": 92.24400782585144
+        },
+        {
+          "id": "gen-08",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-camoproxy",
+          "actual_runbook_id": "gitlab-camoproxy-camoproxy",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 910,
+          "latency_s": 4.0028159618377686
+        },
+        {
+          "id": "gen-09",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "promop-etcdHighNumberOfFailedGRPCRequests",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 777,
+          "latency_s": 2.9923830032348633
+        },
+        {
+          "id": "gen-10",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation",
+          "actual_runbook_id": "gitlab-ci-orchestration-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 973,
+          "latency_s": 4.012497901916504
+        },
+        {
+          "id": "gen-11",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-webui",
+          "actual_runbook_id": "gitlab-atlantis-webui",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 697,
+          "latency_s": 3.007550001144409
+        },
+        {
+          "id": "gen-12",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-infra-development",
+          "actual_runbook_id": "gitlab-ci-orchestration-CiOrchestrationServiceJobQueueDurationApdexSLOViolation",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 807,
+          "latency_s": 3.04270601272583
+        },
+        {
+          "id": "gen-13",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-CiOrchestrationServicePipelineCreationSidekiqSLOViolation",
+          "actual_runbook_id": "gitlab-ci-orchestration-CiOrchestrationServicePipelineCreationSidekiqSLOViolation",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 725,
+          "latency_s": 2.997653007507324
+        },
+        {
+          "id": "gen-14",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "gitlab-ai-gateway-code-suggestions",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 778,
+          "latency_s": 3.0048699378967285
+        },
+        {
+          "id": "gen-15",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-blackbox-git-exporter",
+          "actual_runbook_id": "promop-etcdGRPCRequestsSlow",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 781,
+          "latency_s": 3.0100021362304688
+        },
+        {
+          "id": "gen-16",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "gitlab-cells-restore-topology-service-db",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 882,
+          "latency_s": 3.001343011856079
+        },
+        {
+          "id": "gen-17",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "gitlab-atlantis-README",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 680,
+          "latency_s": 3.0172929763793945
+        },
+        {
+          "id": "gen-18",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-gprd-bastions",
+          "actual_runbook_id": "gitlab-bastions-dev-host",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 842,
+          "latency_s": 2.993906259536743
+        },
+        {
+          "id": "gen-19",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-ci_too_many_archiving_trace_failures",
+          "actual_runbook_id": "gitlab-ci-runners-ci_too_many_archiving_trace_failures",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 695,
+          "latency_s": 3.008812189102173
+        },
+        {
+          "id": "gen-20",
+          "task_success": false,
+          "expected_runbook_id": "gitlab-README",
+          "actual_runbook_id": "gitlab-camoproxy-camoproxy",
+          "tool_selection_accuracy": 1.0,
+          "actual_tools": [
+            "search_runbooks",
+            "find_similar_incidents",
+            "query_service_health",
+            "create_ticket"
+          ],
+          "tokens": 803,
+          "latency_s": 2.0136094093322754
+        }
+      ]
+    },
+    "human": {
+      "status": "PENDING",
+      "summary": null,
+      "tasks": []
+    }
+  }
+}

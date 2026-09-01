@@ -105,7 +105,15 @@ services:
     ports:
       - "8200:8200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8200/ | grep -q ok"]
+      # Image ships no curl/wget/grep, so this uses bash builtins only:
+      # /dev/tcp for the socket, [[ == ]] for the match.
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8200; printf 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; while read -r l <&3; do [[ $$l == *publish_ready* ]] && exit 0; done; exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 30

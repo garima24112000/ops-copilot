@@ -31,7 +31,11 @@ jobs:
       ELASTIC_PASSWORD: ci_test_password
       # Zero live API calls: replay-only fixtures, per CLAUDE.md.
       LLM_ROUTER_MODE: replay
-      HF_HUB_OFFLINE: "0"
+      # run_ci_ablation.py never imports sentence-transformers -- it reads precomputed
+      # query_dense vectors from fixtures/ci_alerts.jsonl, so this is currently a no-op. Set
+      # defensively anyway: if a future CI step ever does construct a SentenceTransformer,
+      # "1" fails fast instead of silently downloading bge-small from the network every run.
+      HF_HUB_OFFLINE: "1"
 
     steps:
       - uses: actions/checkout@v5

@@ -22,14 +22,51 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 9 — MCP server (verified live via real MCP Inspector: all 5 tools, real search results)
 - [x] Session 10 — The agent (LangGraph) (verified live end-to-end: reject path + approve path, real ticket + postmortems)
 - [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
-- [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet hand-built
+- [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet built (next)
 - [x] Session 13 — Document-level security (verified live: bob/carol get different runbooks for the same alert)
-- [ ] Session 14 — End-to-end evals — next (generated subset can run now; human subset needs the operator's 10 stubs filled in)
-- [ ] Session 15 — CI workflow written, real CI-fixture baseline established; not run on GitHub (not pushed, per instructions)
+- [ ] Session 14 — End-to-end evals — CODE DONE, first real run found a stale-fixture bug (fixed), rerun next now that the human golden set is filled
+- [x] Session 15 — CI green on GitHub (3 consecutive successful runs on `main`, `gh run list` confirmed)
 - [x] Session 16 — Terraform (`terraform plan` clean against live cluster; deliberately not applied yet, see note)
-- [ ] Session 17 — Packaging (README, docs, demo script) — blocked on real numbers from sessions 7, 14
+- [~] Session 17 — Packaging: DEMO_SCRIPT.md, docs/architecture.md, docs/security.md, docs/agent_builder_comparison.md done. README.md and docs/cost_and_latency.md are the remaining work, blocked on session 14's rerun for real numbers.
 
 ---
+
+## Context-loss note (2026-09-01)
+
+This file went stale for a stretch: sessions 14/15 code, a CI-driven `apm-server` healthcheck
+fix, a GitHub Actions version bump, and the human golden set all landed in git without a
+matching entry here. Reconstructed from `git log`, `gh run list`, and the actual file diffs
+(not from memory) rather than guessed at:
+
+- **`apm-server` healthcheck fix** (`4e5eac9`): the original healthcheck
+  (`curl -s http://localhost:8200/ | grep -q ok`) never worked — the `apm-server` image ships
+  neither `curl` nor `grep`. Compounding it, an initial fix attempt using `$l` as a shell loop
+  variable inside the Docker Compose YAML got silently consumed by Compose's own `${...}`
+  interpolation before it ever reached the container. Fixed with a bash-builtins-only check
+  (`/dev/tcp` for the raw socket, `[[ == ]]` for the string match, `$$l` to escape the loop
+  variable past Compose's interpolation). Confirmed live: `docker ps` now shows
+  `ops-copilot-apm ... (healthy)`.
+- **CI Node 20 deprecation bump** (`696345d`): `actions/checkout@v4` and
+  `actions/setup-python@v5` bumped to `@v5`/`@v6` after GitHub deprecated the Node 20 runtime
+  those older action versions used. Confirmed via `gh run list`: 3 consecutive green runs on
+  `main` as of this note.
+- **Human golden set** (`5e0686c`): the 10 tasks in `evals/end_to_end/golden_set_human.yaml`
+  are **not** hand-authored from scratch, and the README must not describe them that way. Per
+  the operator directly: they curated which runbooks to target and edited the alert text, but
+  the initial drafts were written by an assistant that had read three of the runbook bodies
+  first. Labelled throughout as **"human-curated, model-drafted, human-edited"** — residual
+  lexical-overlap bias (the same bias the plan names for the *generated* subset) cannot be
+  ruled out for those three tasks specifically.
+- **Stale-fixture bug found on resume, not from memory:** the first real end-to-end eval run
+  (bundled into the `apm-server` fix commit, `evals/results/e2e_eval.json`) reported
+  `task_success_rate: 0.05` — 5%. Investigated rather than reported: 13 of the 20 generated
+  tasks in `evals/end_to_end/golden_set_generated.yaml` had `expected_runbook_id` values from
+  *before* session 6's id-collision fix (e.g. `gitlab-README`, `gitlab-provisioning` — ids that
+  no longer exist in the corrected corpus). `generate_golden_set.py` was run once, early, and
+  never re-run after `data/runbooks.jsonl`/`data/alerts.jsonl` got regenerated with the fixed
+  id scheme. Re-ran it against the current corpus; confirmed zero stale ids remain. The 5%
+  number was never reported anywhere outside a results file — no fabricated number entered
+  README/PROGRESS as a result of this bug.
 
 ## Session log
 

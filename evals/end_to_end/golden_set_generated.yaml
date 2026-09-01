@@ -4,225 +4,237 @@
 tasks:
 - id: gen-01
   alert:
-    service: apiserver_flowcontrol
+    service: artifactRegistry
     severity: critical
-    metric: apiserver_flowcontrol_rejected_requests_total
-    message: Threshold exceeded. 20% of incoming requests terminated, affecting client
-      interaction and in-cluster services.
-  expected_runbook_id: promop-KubeAPITerminatedRequests
+    metric: artifactDegradation
+    message: 'Paging on-call: artifact registry fails to track changes to Kubernetes
+      resources properly'
+  expected_runbook_id: gitlab-artifact-registry-gke-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-02
   alert:
-    service: tenancy-cell-provision
-    severity: warning
-    metric: cell-provision-rates
-    message: 'cell-provision-rates: cell provisioning rate: 0.05% above expected'
-  expected_runbook_id: gitlab-provisioning
+    service: CI/CD Pipeline Monitoring
+    severity: critical
+    metric: Pipeline metrics aggregation
+    message: Sidekiq worker signals not being aggregated correctly due to service
+      disruption. Threshold breached, escalating to on-call.
+  expected_runbook_id: gitlab-ci-orchestration-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-03
   alert:
-    service: prod-app
-    severity: warning
-    metric: apdex_score
-    message: threshold exceeded by 2%
-  expected_runbook_id: gitlab-ApdexSLOViolation
+    service: Cells Infrastructure
+    severity: info
+    metric: Merge Request Creation
+    message: 'Merge Request Creation Failure: Unsuccessful merge of changes, indicating
+      that the changes were not applied correctly.'
+  expected_runbook_id: gitlab-cells-validate
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-04
   alert:
-    service: etcd
-    severity: warning
-    metric: leadership-latency
-    message: etcd leader latency > 1 minute
-  expected_runbook_id: promop-etcdNoLeader
+    service: SSH Key Addition
+    severity: critical
+    metric: Access Request Generation
+    message: Users cannot log in to db-lab hosts without SSH keys. Threshold breached,
+      escalating to on-call.
+  expected_runbook_id: gitlab-bastions-db-lab-bastions
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-05
   alert:
-    service: atlas-service
-    severity: warning
-    metric: response_time
-    message: response_time < 0.5s
-  expected_runbook_id: gitlab-README
+    service: Distribution Build Tooling Service Management
+    severity: critical
+    metric: Consistent Service Configuration
+    message: Incorrect Labels and Alerts. Threshold breached, escalating to on-call.
+  expected_runbook_id: gitlab-build-tooling-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-06
   alert:
-    service: gstg-bastion
-    severity: critical
-    metric: request latency
-    message: 'threshold exceeded: 200ms, rate: 1 requests/s, restarts: 0, error count:
-      0'
-  expected_runbook_id: gitlab-gstg-bastions
+    service: Kubernetes Node Networking
+    severity: warning
+    metric: Node Connectivity
+    message: Cluster API Unavailable Due to Network Issues -- SLO at risk.
+  expected_runbook_id: promop-KubeAggregatedAPIDown
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-07
   alert:
-    service: cell-automated-test
-    severity: info
-    metric: requests_per_second
-    message: <1 request/s <300ms delay>
-  expected_runbook_id: gitlab-qa
+    service: Cell Environment Access
+    severity: critical
+    metric: Cell Environment Access Time
+    message: Incorrectly accessed cell environment with full build and CI process
+      disruption due to manual debugging operations.. Threshold breached, escalating
+      to on-call.
+  expected_runbook_id: gitlab-cells-infra-development
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-08
   alert:
-    service: camoproxy
-    severity: warning
-    metric: requests_per_second
-    message: Camoproxy restarted after 3 instances due to high latency.
-  expected_runbook_id: gitlab-camoproxy
+    service: Kubernetes Deployment Monitoring
+    severity: critical
+    metric: URLs passing through Camoproxy proxy
+    message: 'Paging on-call: Camoproxy proxy is not resolving SSL/TLS issues for
+      user-content.gitlab-static.net'
+  expected_runbook_id: gitlab-camoproxy-camoproxy
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-09
   alert:
-    service: gitlab
-    severity: info
-    metric: log_rate
-    message: 1.4 log/sec
-  expected_runbook_id: gitlab-README
+    service: Secure SSH Host Key Management
+    severity: warning
+    metric: ssh_host_key_generation
+    message: 'ALERT: Internal engineering runbook provided for secure SSH host key
+      management guide was incomplete and missing key comparison and access control
+      information.'
+  expected_runbook_id: gitlab-bastions-gprd-bastions
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-10
   alert:
-    service: ci-pipeline
+    service: NodeNetworkInterfaceFlapping
     severity: info
-    metric: infrequent_failures
-    message: Infrequent failures due to infrastructure issues exceed SLO burn rate
-      threshold
-  expected_runbook_id: gitlab-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation
+    metric: network interface flapping
+    message: applications fail or data loss due to network interface changes on a
+      node
+  expected_runbook_id: promop-NodeNetworkInterfaceFlapping
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-11
   alert:
-    service: atlas-web-ui
-    severity: info
-    metric: accesses_per_minute
-    message: 1Password Production vault accessed 5000 times in 1m
-  expected_runbook_id: gitlab-webui
+    service: alertmanager
+    severity: critical
+    metric: Endpoint IP Address
+    message: Inconsistent IP addresses due to incorrect Endpoint deletion and recreation.
+      Threshold breached, escalating to on-call.
+  expected_runbook_id: promop-AlertmanagerMembersInconsistent
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-12
   alert:
-    service: engineering
-    severity: info
-    metric: cell-environment-assessment-rate
-    message: Test environment assessment rate > 0.05
-  expected_runbook_id: gitlab-infra-development
+    service: Production Environment Monitoring
+    severity: critical
+    metric: Service Availability
+    message: Unreliable and insecure logging and alerting of Atlantis service. Threshold
+      breached, escalating to on-call.
+  expected_runbook_id: gitlab-atlantis-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-13
   alert:
-    service: pipeline-creation
-    severity: warning
-    metric: queue-congestion-rate
-    message: Queue congestion detected, pipeline creation rates exceeded threshold.
-  expected_runbook_id: gitlab-CiOrchestrationServicePipelineCreationSidekiqSLOViolation
+    service: Dependency Upgrade
+    severity: critical
+    metric: latest dependency versions
+    message: Failed auto-upgrade due to mismatched dependency versions with Instrumentor
+      dependencies.. Threshold breached, escalating to on-call.
+  expected_runbook_id: gitlab-cells-auto-upgrade-dependency-versions
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-14
   alert:
-    service: gitlab-updates
+    service: Pipeline Processing
     severity: warning
-    metric: link-resolution-failure-rate
-    message: 'link-resolution-failure-rate < 1%: 5 restarts, 3 errors'
-  expected_runbook_id: gitlab-README
+    metric: Pipeline state transition times
+    message: Pipeline processing workers exceeding 80% SLO burn rate thresholds --
+      SLO at risk.
+  expected_runbook_id: gitlab-ci-orchestration-CiOrchestrationServicePipelineProcessingSidekiqSLOViolation
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-15
   alert:
-    service: prometheus-alerting
-    severity: critical
-    metric: latency
-    message: Processor utilization is above 80%
-  expected_runbook_id: gitlab-blackbox-git-exporter
+    service: Monitoring System
+    severity: info
+    metric: CPU Utilization
+    message: High CPU Utilization during E2E Testing
+  expected_runbook_id: gitlab-charts-e2e-testing-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-16
   alert:
-    service: backup-and-restore
-    severity: info
-    metric: backup-script-execution-time
-    message: 'backup script execution time: 30ms'
-  expected_runbook_id: gitlab-README
+    service: blackbox exporter
+    severity: warning
+    metric: log retention
+    message: 'ALERT: failed probes are not being stored in memory'
+  expected_runbook_id: gitlab-blackbox-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-17
   alert:
-    service: atlantis
+    service: etcd cluster leadership
     severity: info
-    metric: log_rate
-    message: atlantis log rate is low (5 requests/sec)
-  expected_runbook_id: gitlab-README
+    metric: cluster leadership
+    message: Kubernetes API unresponsive and write/read queue indefinitely -- SLO
+      at risk.
+  expected_runbook_id: promop-etcdNoLeader
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-18
   alert:
-    service: bastion-hosts
-    severity: info
-    metric: ssh-config-configured
-    message: ssh-config successfully configured on bastion host. Host key is being
-      managed.
-  expected_runbook_id: gitlab-gprd-bastions
+    service: AWS DMS
+    severity: critical
+    metric: AWS DMS Migration Failure
+    message: Failed to generate filter rules to exclude specific organizations from
+      migration.. Threshold breached, escalating to on-call.
+  expected_runbook_id: gitlab-cells-dms-source-filters
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-19
   alert:
-    service: ci-cd-pipeline
+    service: kube-heap-usage
     severity: warning
-    metric: write_attempts_to_s3
-    message: Increase write attempts to S3 to prevent stale file handles from being
-      cleaned up.
-  expected_runbook_id: gitlab-ci_too_many_archiving_trace_failures
+    metric: kube-heap-size
+    message: container is stuck in Waiting state for too long -- SLO at risk.
+  expected_runbook_id: promop-KubeContainerWaiting
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents
   - query_service_health
 - id: gen-20
   alert:
-    service: camoproxy
+    service: Pipeline UI
     severity: warning
-    metric: restarts_within_last_5m
-    message: 2 errors in last 5m
-  expected_runbook_id: gitlab-README
+    metric: pipeline_health
+    message: Unable to display pipeline start and execution times correctly -- SLO
+      at risk.
+  expected_runbook_id: gitlab-ci-orchestration-README
   expected_tool_sequence:
   - search_runbooks
   - find_similar_incidents

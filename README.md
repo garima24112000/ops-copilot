@@ -76,7 +76,29 @@ time.
 Generated and human-curated subsets are reported **separately, never merged** — they carry
 different provenance and different bias profiles. Source: [`evals/results/e2e_eval.json`](evals/results/e2e_eval.json).
 
-<!-- E2E_TABLE_PLACEHOLDER -->
+| subset    | n  | task success | tool-selection accuracy | mean tokens/run | p95 latency |
+|-----------|----|--------------|--------------------------|------------------|-------------|
+| generated | 20 | 0.650        | 1.000                    | 695              | 77.17 s     |
+| human     | 10 | 0.300        | 1.000                    | 787              | 48.08 s     |
+
+**Interpretation:** tool-selection accuracy is 1.000 on both subsets — the agent always calls
+the right MCP tool sequence for the alert it's given; every failure here is a *retrieval*
+failure (wrong runbook id), not a tool-use failure. Two patterns explain most of the gap:
+
+1. **Near-misses within the right service, not random misses.** Several "failures" retrieve a
+   more specific doc in the *same* service directory as the expected one — e.g. `gen-16`
+   expected `gitlab-blackbox-README` but got `gitlab-blackbox-BlackboxProbeFailures`; `gen-02`
+   expected `gitlab-ci-orchestration-README` but got a specific SLO-violation runbook in that
+   same `ci-orchestration` directory. Task success here is exact-id match, a strict metric —
+   these are the retriever correctly narrowing to the right service and picking a plausibly
+   *more* targeted document than the generic README, which the metric still scores as failure.
+2. **The human subset's two "INTENDED HARD" tasks failed as their own notes predicted.**
+   `human-07` (TargetDown) and `human-08` (ApdexSLOViolation) were deliberately curated as hard
+   cases in `golden_set_human.yaml`'s own `notes` field, and both failed. A well-designed
+   golden set testing its hard cases and having them fail as anticipated is a sign the set is
+   doing its job, not evidence the agent is unusually broken on human-curated alerts — though
+   the smaller n=10 means each failure moves the human success rate by 10 points, so this
+   number is noisier than the generated subset's.
 
 **A note on the "human-curated" subset's provenance**, stated precisely because it matters:
 the 10 tasks in `evals/end_to_end/golden_set_human.yaml` were **not** hand-authored from

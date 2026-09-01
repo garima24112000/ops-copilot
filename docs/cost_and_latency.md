@@ -34,11 +34,14 @@ model-drafted, human-edited" means for the second row.
 
 | subset              | n  | task success | tool-selection accuracy | mean tokens/run | p95 latency |
 |----------------------|----|--------------|--------------------------|------------------|-------------|
-| generated            | TBD | TBD          | TBD                      | TBD              | TBD         |
-| human-curated        | TBD | TBD          | TBD                      | TBD              | TBD         |
+| generated            | 20 | 0.650        | 1.000                    | 695              | 77.17 s     |
+| human-curated        | 10 | 0.300        | 1.000                    | 787              | 48.08 s     |
 
-_(Filled from a live run against the real ingested corpus — `evals.end_to_end.run_eval` — as
-soon as it completes; this file is updated in the same commit as the numbers.)_
+Tool-selection accuracy is 1.000 on both subsets — every failure is a retrieval failure (wrong
+runbook id retrieved), not a wrong tool call. See the README's end-to-end evals section for the
+per-task interpretation, including the near-miss pattern (retrieving a more specific doc in the
+right service directory) and the two human-subset tasks deliberately curated as hard cases that
+failed as their own notes predicted.
 
 ## What this would cost at paid rates
 

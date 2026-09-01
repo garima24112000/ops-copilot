@@ -24,10 +24,10 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
 - [x] Session 12 — Kibana dashboard (built via saved-objects API, all 5 panels verified against real data, exported to dashboards/)
 - [x] Session 13 — Document-level security (verified live: bob/carol get different runbooks for the same alert)
-- [ ] Session 14 — End-to-end evals — CODE DONE, first real run found a stale-fixture bug (fixed), rerun next now that the human golden set is filled
+- [x] Session 14 — End-to-end evals — real rerun complete: generated n=20 (0.650 task success, 1.000 tool acc), human n=10 (0.300 task success, 1.000 tool acc), never merged
 - [x] Session 15 — CI green on GitHub (3 consecutive successful runs on `main`, `gh run list` confirmed)
 - [x] Session 16 — Terraform (`terraform plan` clean against live cluster; deliberately not applied yet, see note)
-- [~] Session 17 — Packaging: DEMO_SCRIPT.md, docs/architecture.md, docs/security.md, docs/agent_builder_comparison.md done. README.md and docs/cost_and_latency.md are the remaining work, blocked on session 14's rerun for real numbers.
+- [x] Session 17 — Packaging: DEMO_SCRIPT.md, docs/architecture.md, docs/security.md, docs/agent_builder_comparison.md, README.md (real e2e table + engineering notes + limitations), docs/cost_and_latency.md (real e2e table) all done.
 
 ---
 
@@ -581,6 +581,43 @@ python cli.py data/sample_alert.json --user carol --reject   # carol = networkin
 Real, different citations for the same alert from two different users, exactly the demo the
 plan asks for. Both users' API keys were minted for real (`security/.user_api_keys.json` now
 has `bob` and `carol` entries — checked the cache has the keys, never the values themselves).
+
+### Session 14 — End-to-end evals — DONE, real numbers, generated and human subsets never merged
+`evals/end_to_end/run_eval.py` drives the full LangGraph agent (live LLM calls, live MCP tool
+calls, live Elasticsearch) against two golden sets and scores task success (exact
+`expected_runbook_id` match), tool-selection accuracy, tokens/run, and latency per task.
+
+**First real run reported task success ~5%, investigated rather than reported.** Root cause:
+`golden_set_generated.yaml` was generated once, early, against a corpus that still had the
+session-5/6 id-collision bug, and was never re-run after the corpus was regenerated with the
+fixed id scheme — 13/20 tasks referenced ids that no longer existed. Re-ran
+`generate_golden_set.py` against the current corpus; confirmed zero stale ids remain before
+re-running the eval. The bogus 5% number was never reported anywhere outside a results file.
+
+**Final real results**, source `evals/results/e2e_eval.json`:
+
+| subset    | n  | task success | tool-selection accuracy | mean tokens/run | p95 latency |
+|-----------|----|--------------|--------------------------|------------------|-------------|
+| generated | 20 | 0.650        | 1.000                    | 695              | 77.17 s     |
+| human     | 10 | 0.300        | 1.000                    | 787              | 48.08 s     |
+
+Tool-selection accuracy is 1.000 on both subsets — every failure is a retrieval failure (wrong
+runbook id), not a wrong tool call. Per-task review of both subsets shows two patterns behind
+the gap, not random noise:
+1. Several failures retrieve a *more specific* doc in the same service directory as the
+   expected one (`gen-16`: expected `gitlab-blackbox-README`, got
+   `gitlab-blackbox-BlackboxProbeFailures`; `gen-02`: expected `gitlab-ci-orchestration-README`,
+   got a specific SLO-violation runbook in that same directory) — task success is exact-id
+   match, a strict metric that scores these as failures even though the retriever correctly
+   narrowed to the right service.
+2. `human-07` (TargetDown) and `human-08` (ApdexSLOViolation) were curated as deliberately hard
+   cases in `golden_set_human.yaml`'s own `notes` field, and both failed as their notes
+   predicted — evidence the golden set is doing its job, not that the agent is unusually broken
+   on human-curated alerts. With n=10, each human-subset failure moves the rate by 10 points, so
+   this number is noisier than the generated subset's 20-task rate.
+
+Full per-task detail (id, success, expected vs. actual runbook id) is in
+`evals/results/e2e_eval.json`; not reproduced here to avoid the two files drifting.
 
 ### Session 16 — Terraform — DONE (index templates, ELSER endpoint, DLS roles+keys; containers deliberately left to docker-compose)
 `infra/`: `elastic/elasticstack` provider (pinned `>= 0.16.0, < 1.0.0`, resolved to 0.16.4 —

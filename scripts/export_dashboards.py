@@ -32,7 +32,7 @@ def main() -> int:
 
     client = httpx.Client(base_url=kibana_url, auth=auth, headers={"kbn-xsrf": "true"})
 
-    resp = client.post(
+    resp = client.get(
         "/api/saved_objects/_find",
         params={"type": "dashboard", "search": DASHBOARD_TITLE, "search_fields": "title"},
     )

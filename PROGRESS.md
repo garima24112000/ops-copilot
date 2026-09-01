@@ -22,7 +22,7 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 9 — MCP server (verified live via real MCP Inspector: all 5 tools, real search results)
 - [x] Session 10 — The agent (LangGraph) (verified live end-to-end: reject path + approve path, real ticket + postmortems)
 - [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
-- [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet built (next)
+- [x] Session 12 — Kibana dashboard (built via saved-objects API, all 5 panels verified against real data, exported to dashboards/)
 - [x] Session 13 — Document-level security (verified live: bob/carol get different runbooks for the same alert)
 - [ ] Session 14 — End-to-end evals — CODE DONE, first real run found a stale-fixture bug (fixed), rerun next now that the human golden set is filled
 - [x] Session 15 — CI green on GitHub (3 consecutive successful runs on `main`, `gh run list` confirmed)
@@ -510,6 +510,42 @@ call that failed over to Groq, since it's set when the span opens (before the pr
 known) and OTel span names aren't meant to be renamed mid-span — the *attributes* are correct
 either way. Worth mentioning in the README's honesty section, not worth "fixing" by hiding the
 failover from the span name.
+
+### Session 12 — Kibana dashboard — DONE, built via saved-objects API, verified against real data
+`scripts/build_dashboard.py`: builds 5 visualizations + 1 dashboard entirely through
+`POST /api/saved_objects/<type>/<id>` calls (no UI clicking, per the operator's instruction),
+against a `traces-apm-default` data view created the same way. Panels: tokens per run over
+time (line, sum of `numeric_labels.gen_ai_usage_input_tokens`/`output_tokens` over a date
+histogram, filtered to `span.name: "chat*"`), p95 latency by span (bar, `percentiles` on
+`span.duration.us` grouped by `span.name`), tool-call frequency (pie, terms on
+`labels.gen_ai_tool_name`, filtered to `execute_tool*` spans), provider mix (pie, terms on
+`labels.gen_ai_provider_name`), run success rate (metric, `filter_ratio` on
+`event.outcome: success` for `invoke_agent*` transactions).
+
+Field names were not guessed — pulled from a real trace document via `_field_caps` /
+`_search` first (`numeric_labels.*` for numeric span attributes vs `labels.*` for string ones,
+confirmed via a live query, not assumed from the OTel attribute names).
+
+**Verification — chose direct-query verification over browser login** to avoid entering the
+local Elastic superuser password into a browser form (this project's own security rules treat
+credential entry as something to avoid where an equivalent check exists without it). Instead,
+ran the *exact* aggregation each panel uses directly against the real `traces-apm-default`
+data stream and confirmed real, non-empty, sane results for all 5:
+```
+tokens per run:      8 chat spans, 1722 input / 899 output tokens in one hour bucket
+p95 latency by span: 10 span types, real percentiles (e.g. search_runbooks MCP call: 446.5ms)
+tool-call frequency: find_similar_incidents=4, query_service_health=4, search_runbooks=4, create_ticket=1
+provider mix:        gemini=5, groq=3 -- real, live proof of session 8's failover across runs
+run success rate:    4/4 invoke_agent transactions succeeded (100%)
+```
+Also caught and fixed a real bug in `scripts/export_dashboards.py` while exercising it for
+real: it called Kibana's `_find` endpoint (a GET-only route) via `client.post(...)`, which
+returned `400 Bad Request`. Fixed to `client.get(...)`. `make export-dashboards` then wrote
+7 objects (dashboard + 5 visualizations + the data view) to
+`dashboards/ops_copilot_dashboard.ndjson`; `make import-dashboards` re-imported them
+successfully (`import success=True, imported 7 objects`) — the closest round-trip check
+achievable without standing up a second, fresh stack, which this build's time budget doesn't
+have room for.
 
 ### Session 13 — Document-level security — DONE, verified live with two real users
 `security/dls.py`: 5 fixed demo users -> department (`alice`/platform-engineering,

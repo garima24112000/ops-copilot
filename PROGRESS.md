@@ -17,7 +17,7 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 4 — Alert reverse-generation
 - [x] Session 5 — Index and ingest (corpus id bug found + fixed, alerts regenerated with improved prompt, re-ingested clean: 120/120 + 147/147 + 32000/32000)
 - [x] Session 6 — Retrieval check — FAILED first attempt (40%), diagnosed (id collision + generic alerts), fixed, re-checked: **90% PASS**
-- [ ] Session 7 — Retrieval ablation — next
+- [x] Session 7 — Retrieval ablation (real 4-row table: BM25 0.837, dense 0.748, ELSER 0.884, hybrid RRF 0.864 recall@5)
 - [x] Session 8 — LLM router
 - [x] Session 9 — MCP server (code complete; live tool-call verification next, now that data is real)
 - [x] Session 10 — The agent (LangGraph) (code complete; live end-to-end run next)
@@ -301,6 +301,38 @@ exactly, zero silent loss, unlike the first pass.
 RRF query) — it was two compounding, both-found-by-investigation-not-inspection data problems:
 an id-collision bug in corpus generation, and an alert-generation prompt that had over-corrected
 into content-free genericness. Both are now fixed in code, not just patched around in data.
+
+### Session 7 — Retrieval ablation — DONE (highest value per minute, per the plan)
+`evals/retrieval/run_ablation.py`: BM25-only, dense-only (bge-small), ELSER-only, hybrid RRF —
+zero LLM calls, over all 147 real generated alert/runbook pairs. Results written to
+`evals/results/ablation.json` (tagged with the git SHA) and indexed into `ops-agent-evals`
+(12 docs = 4 strategies x 3 metrics, verified via `_count`).
+
+**Real numbers, read from the file, not typed from memory:**
+
+| strategy    | recall@5 | nDCG@10 | p95 latency |
+|-------------|----------|---------|-------------|
+| BM25 only   | 0.837    | 0.744   | 4.2 ms      |
+| Dense only  | 0.748    | 0.656   | 5.9 ms      |
+| ELSER only  | 0.884    | 0.785   | 663.0 ms    |
+| Hybrid RRF  | 0.864    | 0.791   | 19.7 ms     |
+
+**Interpretation (the plan asks for one paragraph, and an opinion):** ELSER alone has the best
+recall@5, but hybrid RRF has the best nDCG@10 (0.791, edging out ELSER's 0.785) while running
+at **34x lower p95 latency** than ELSER alone (19.7ms vs 663ms) — RRF only needs one of its two
+sub-retrievers to rank the right document highly for the fused rank to benefit, so it captures
+most of ELSER's semantic-matching advantage while paying BM25's latency for the query that
+usually resolves it. Dense-only trails both sparse approaches on every metric here, consistent
+with bge-small being a general-purpose sentence embedding model with no domain adaptation to
+ops/SRE vocabulary, versus ELSER's expansion-based sparse retrieval which can still hit
+exact operator/service-name tokens (BM25's strength) while also matching semantically related
+terms. For a real on-call tool, hybrid RRF is the right default: ELSER-only's 663ms p95 would
+be a genuinely bad experience at alert-triage time, and hybrid gets ELSER's accuracy gains
+back for a fraction of the latency cost.
+
+**Gate:** four rows of real numbers. Passed; committing immediately per the plan's own
+instruction ("this table plus a README is still a credible submission" if everything else
+fails from here).
 
 ### Session 8 — LLM router — DONE
 `agent/llm_router.py` + `agent/providers.py`: `LLMRouter.chat()` tries providers in order

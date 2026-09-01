@@ -19,9 +19,9 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 6 — Retrieval check — FAILED first attempt (40%), diagnosed (id collision + generic alerts), fixed, re-checked: **90% PASS**
 - [x] Session 7 — Retrieval ablation (real 4-row table: BM25 0.837, dense 0.748, ELSER 0.884, hybrid RRF 0.864 recall@5)
 - [x] Session 8 — LLM router
-- [x] Session 9 — MCP server (code complete; live tool-call verification next, now that data is real)
-- [x] Session 10 — The agent (LangGraph) (code complete; live end-to-end run next)
-- [x] Session 11 — OTel instrumentation (code complete; live trace-in-APM verification pending an agent run)
+- [x] Session 9 — MCP server (verified live via real MCP Inspector: all 5 tools, real search results)
+- [x] Session 10 — The agent (LangGraph) (verified live end-to-end: reject path + approve path, real ticket + postmortems)
+- [x] Session 11 — OTel instrumentation (verified live in APM: real invoke_agent/chat/execute_tool spans, token counts, provider failover reflected correctly)
 - [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet hand-built
 - [x] Session 13 — Document-level security (code complete; live two-user demo next)
 - [ ] Session 14 — End-to-end evals — next (generated subset can run now; human subset needs the operator's 10 stubs filled in)
@@ -367,7 +367,7 @@ it's a one-off corpus-generation script, not "agent or eval code" (CLAUDE.md's r
 scoped to those), and going through the router's disk cache would be actively wrong here (we
 *want* 200 distinct generations, not 200 cache hits on near-identical prompts).
 
-### Session 9 — MCP server — CODE DONE, live tool verification pending session 5 data
+### Session 9 — MCP server — DONE, verified live against real MCP Inspector
 `mcp_server/server.py` (FastMCP, standalone — not LangChain tools, so any MCP client can point
 at it unmodified) exposes 5 tools: `search_runbooks` (hybrid BM25+ELSER via the ES `rrf`
 retriever), `find_similar_incidents` (semantic search on `ops-incidents`), `query_service_health`
@@ -382,12 +382,18 @@ Retrieval snippets are truncated at the source (600 chars for runbooks, 400 for 
 this is the main lever on the 4-5K-token-per-run budget, applied where the data leaves the
 index rather than trusting a later layer to remember to truncate.
 
-**Not yet run against MCP Inspector or verified live** — `search_runbooks` needs `ops-runbooks`
-populated, which session 5's ELSER throughput issue (see above) delayed. Code is written,
-lint+mypy clean; the actual "Inspector lists all 5 tools and search_runbooks returns real
-results" gate is still open and will be closed once ingest finishes.
+**Gate, run for real via the actual MCP Inspector, not the in-process client:**
+`npx @modelcontextprotocol/inspector .venv/bin/python -m mcp_server.server`, connected over the
+real UI in a real browser (claude-in-chrome), not just curl. All 5 tools listed — Search
+Runbooks, Find Similar Incidents, Query Service Health, Create ticket (requires approval),
+Restart service (requires approval) — with the approval annotations rendering correctly.
+Executed `search_runbooks` with query "etcd cluster does not have a leader, elections
+flapping": returned 3 real, correct etcd runbooks (`promop-etcdNoLeader`,
+`promop-etcdHighFsyncDurations`, `promop-etcdGRPCRequestsSlow`) with real scores, snippets, and
+GitHub source URLs. Also did the "point Claude Code itself at your MCP server" demo the plan
+suggests as good video material, in effect, via this same Inspector session.
 
-### Session 10 — The agent (LangGraph) — CODE DONE, live end-to-end run pending session 5 data
+### Session 10 — The agent (LangGraph) — DONE, verified live end to end (twice: reject + approve paths)
 `agent/graph.py` + `agent/nodes.py` + `agent/state.py` + `cli.py`: `triage -> ground -> diagnose
 -> approve -> act -> record`, compiled with `MemorySaver` so `interrupt()` inside `approve()`
 can pause and later resume via `Command(resume=...)` — verified this is still the current
@@ -405,12 +411,31 @@ else `create_ticket`, then `interrupt()`s with the proposal before anything side
 prints the interrupt payload, prompts for approval (or takes `--approve`/`--reject` for scripted
 runs), resumes, and prints `postmortem_id` + cumulative `token_usage`.
 
-**Not yet run end to end** — needs `ops-runbooks`/`ops-incidents`/`ops-logs-*` populated (same
-session-5 blocker as session 9). Lint+mypy clean, `agent/mcp_client.py`'s in-process
-`fastmcp.Client(mcp)` wiring is written but unexercised. This is the actual gate: "one alert
-flows end to end and pauses for approval" — open until ingest finishes.
+**Gate, run for real, twice** — `python cli.py data/sample_alert.json --reject` and
+`--approve`, against the real ingested corpus:
 
-### Session 11 — OTel instrumentation — CODE DONE, live trace-in-APM verification pending an agent run
+- **triage**: `etcd` / `critical` normalized correctly (94/20 tokens).
+- **ground**: retrieved `promop-etcdInsufficientMembers` — the exactly-correct runbook for
+  `data/sample_alert.json`'s "Not enough instances available" alert.
+- **diagnose**: called `find_similar_incidents` + `query_service_health` for real,
+  hypothesized "false positive triggered by stale or misconfigured metrics, not a true quorum
+  loss" and set `diagnosis_confirmed: false` — a genuinely reasonable read, since
+  `query_service_health` legitimately found zero `ops-logs-*` lines for service `etcd` (Loghub
+  has no etcd system in its sample; an honest "no telemetry to confirm this" case, not a bug).
+- **approve**: proposed `create_ticket` (non-critical path, since not confirmed) with a
+  rationale citing the real hypothesis and runbook, and correctly `interrupt()`ed before
+  anything ran.
+- **`--reject` run**: `act` returned `{"status": "skipped_not_approved"}`, exactly as designed.
+- **`--approve` run**: `act` called the real mock API and got back a real ticket
+  (`OPS-42C30589`), persisted in `mcp_server/mock_api_state.json` — checked the file directly,
+  not just trusted the printed output.
+- **record**: both runs wrote a real postmortem doc (`pm-67a66e23`, `pm-765c6bc1`);
+  `ops-postmortems` count is 2, confirmed via `_count`.
+
+"One alert flows end to end and pauses for approval" — passed, on both branches of the
+approval decision, not just the happy path.
+
+### Session 11 — OTel instrumentation — DONE, verified live in APM
 `agent/telemetry.py`. Verified current attribute names against the live spec docs before
 writing anything (rule 10's "check, current APIs drift" applies here explicitly, not just to
 ELSER): `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`,
@@ -426,9 +451,28 @@ call (`agent/mcp_client.py::call_tool`) automatically — wired into the shared 
 tool invocation gets one, not just the ones a developer remembers to instrument. OTLP/HTTP
 exporter targets `${APM_SERVER_URL}/v1/traces`.
 
-**Not yet verified live in Kibana APM** — needs a completed agent run (session 10's blocker).
-Code paths are exercised by nothing but import-time checks so far; the actual gate ("open APM,
-find the trace, see the waterfall with token counts on chat spans") is still open.
+**Gate, run for real:** after session 10's live runs, queried the real
+`.ds-traces-apm-default-*` data stream directly (`_search`, not just eyeballing Kibana) — 59
+real span docs from a single run. Confirmed present and correctly shaped:
+- `invoke_agent ops-copilot-triage` root span with `gen_ai.agent.name`, `gen_ai.provider.name`.
+- Two `chat gemini-flash-latest` spans, one with `gen_ai_provider_name: gemini` (served by
+  Gemini) and one with `gen_ai_provider_name: groq` / `gen_ai_response_model:
+  openai/gpt-oss-20b` (the *same* span, opened under the first-choice provider's name but
+  correctly annotated with the provider that actually served the call after the router failed
+  over) — real, live proof the router's failover (session 8) and the span instrumentation
+  compose correctly. Token counts present on both: `gen_ai_usage_input_tokens: 94/347`,
+  `gen_ai_usage_output_tokens: 20/259`.
+- Four `execute_tool` spans (`search_runbooks`, `find_similar_incidents`,
+  `query_service_health` x2), each carrying `gen_ai.tool.name` and the real call arguments.
+- Also visible: FastMCP's own OTel auto-instrumentation (`fastmcp_*` labels on `tools/call`,
+  `tools/list`, `server/discover` spans) — a nice confirmation the standalone-MCP-server design
+  (session 9) is really exercising the MCP protocol, not a shortcut.
+
+One honest cosmetic note: the span *name* stays `chat gemini-flash-latest` even on the
+call that failed over to Groq, since it's set when the span opens (before the provider is
+known) and OTel span names aren't meant to be renamed mid-span — the *attributes* are correct
+either way. Worth mentioning in the README's honesty section, not worth "fixing" by hiding the
+failover from the span name.
 
 ### Session 13 — Document-level security — CODE DONE, live two-user demo pending session 5 data
 `security/dls.py`: 5 fixed demo users -> department (`alice`/platform-engineering,

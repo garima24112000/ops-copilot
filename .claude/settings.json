@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pytest:*)",
+      "Bash(ruff:*)", "Bash(mypy:*)", "Bash(make:*)", "Bash(docker:*)",
+      "Bash(ollama:*)", "Bash(pkill:*)", "Bash(npx:*)",
+      "Bash(curl http://localhost:*)", "Bash(ls:*)", "Bash(cat:*)",
+      "Bash(head:*)", "Bash(tail:*)", "Bash(jq:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(git add:*)", "Bash(git commit:*)"
+    ],
+    "ask": ["Bash(git push:*)"],
+    "deny": ["Read(./.env)", "Edit(./.env)", "Bash(rm -rf:*)"]
+  }
+}

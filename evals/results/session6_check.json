@@ -1,0 +1,447 @@
+{
+  "n_holdout": 20,
+  "top3_hit_rate": 0.9,
+  "threshold": 0.6,
+  "passed": true,
+  "worked_examples": [
+    {
+      "query": "Failed to execute shell command in toolbox pod with error 'Error: Invalid command to execute in toolbox pod'. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-cells-toolbox",
+      "top3": [
+        {
+          "id": "gitlab-cells-toolbox",
+          "title": "toolbox"
+        },
+        {
+          "id": "gitlab-cells-debugging",
+          "title": "debugging"
+        },
+        {
+          "id": "gitlab-cells-index",
+          "title": "index"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Timeouts exceeded when interacting with API endpoints via http(s) endpoints. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-api-README",
+      "top3": [
+        {
+          "id": "gitlab-api-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ai-gateway-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ai-gateway-code-suggestions",
+          "title": "code-suggestions"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Network and Firewall Configurations are not configured correctly causing API errors.. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "promop-KubeAggregatedAPIDown",
+      "top3": [
+        {
+          "id": "gitlab-alerts-ErrorSLOViolation",
+          "title": "ErrorSLOViolation"
+        },
+        {
+          "id": "gitlab-api-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-alerts-TrafficAbsent",
+          "title": "TrafficAbsent"
+        }
+      ],
+      "hit": false
+    }
+  ],
+  "all_examples": [
+    {
+      "query": "Failed to execute shell command in toolbox pod with error 'Error: Invalid command to execute in toolbox pod'. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-cells-toolbox",
+      "top3": [
+        {
+          "id": "gitlab-cells-toolbox",
+          "title": "toolbox"
+        },
+        {
+          "id": "gitlab-cells-debugging",
+          "title": "debugging"
+        },
+        {
+          "id": "gitlab-cells-index",
+          "title": "index"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Timeouts exceeded when interacting with API endpoints via http(s) endpoints. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-api-README",
+      "top3": [
+        {
+          "id": "gitlab-api-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ai-gateway-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ai-gateway-code-suggestions",
+          "title": "code-suggestions"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Network and Firewall Configurations are not configured correctly causing API errors.. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "promop-KubeAggregatedAPIDown",
+      "top3": [
+        {
+          "id": "gitlab-alerts-ErrorSLOViolation",
+          "title": "ErrorSLOViolation"
+        },
+        {
+          "id": "gitlab-api-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-alerts-TrafficAbsent",
+          "title": "TrafficAbsent"
+        }
+      ],
+      "hit": false
+    },
+    {
+      "query": "ALERT: Applications lose connectivity with other services due to network interface changes",
+      "gold_runbook_id": "promop-NodeNetworkInterfaceFlapping",
+      "top3": [
+        {
+          "id": "promop-NodeNetworkInterfaceFlapping",
+          "title": "NodeNetworkInterfaceFlapping"
+        },
+        {
+          "id": "gitlab-alerts-ErrorSLOViolation",
+          "title": "ErrorSLOViolation"
+        },
+        {
+          "id": "gitlab-alerts-TrafficAbsent",
+          "title": "TrafficAbsent"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "etcd instances are experiencing poor performance on network-attached storage devices -- SLO at risk.",
+      "gold_runbook_id": "promop-etcdHighFsyncDurations",
+      "top3": [
+        {
+          "id": "promop-etcdHighFsyncDurations",
+          "title": "etcdHighFsyncDurations"
+        },
+        {
+          "id": "promop-etcdInsufficientMembers",
+          "title": "etcdInsufficientMembers"
+        },
+        {
+          "id": "promop-NodeNetworkInterfaceFlapping",
+          "title": "NodeNetworkInterfaceFlapping"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "ALERT: Certificate replacement failed due to missing backup.",
+      "gold_runbook_id": "gitlab-certificates-forum",
+      "top3": [
+        {
+          "id": "gitlab-certificates-forum",
+          "title": "forum"
+        },
+        {
+          "id": "gitlab-certificates-chef_vault",
+          "title": "chef_vault"
+        },
+        {
+          "id": "gitlab-certificates-zendesk",
+          "title": "zendesk"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Patch failures in outermost rings cause halting process and requires manual intervention.. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-cells-index",
+      "top3": [
+        {
+          "id": "gitlab-cells-index",
+          "title": "index"
+        },
+        {
+          "id": "gitlab-cells-debugging",
+          "title": "debugging"
+        },
+        {
+          "id": "gitlab-cells-deleting",
+          "title": "deleting"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "node failure leading to pending Pods -- SLO at risk.",
+      "gold_runbook_id": "promop-KubeCPUOvercommit",
+      "top3": [
+        {
+          "id": "promop-KubeCPUOvercommit",
+          "title": "KubeCPUOvercommit"
+        },
+        {
+          "id": "promop-KubeCPUQuotaOvercommit",
+          "title": "KubeCPUQuotaOvercommit"
+        },
+        {
+          "id": "gitlab-ci-orchestration-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation",
+          "title": "CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Failed auto-upgrade due to mismatched dependency versions with Instrumentor dependencies.. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-cells-auto-upgrade-dependency-versions",
+      "top3": [
+        {
+          "id": "gitlab-cells-auto-upgrade-dependency-versions",
+          "title": "auto-upgrade-dependency-versions"
+        },
+        {
+          "id": "gitlab-cells-auto-deploy",
+          "title": "auto-deploy"
+        },
+        {
+          "id": "gitlab-cells-deleting",
+          "title": "deleting"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Unable to display pipeline start and execution times correctly -- SLO at risk.",
+      "gold_runbook_id": "gitlab-ci-orchestration-README",
+      "top3": [
+        {
+          "id": "gitlab-ci-orchestration-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ci-orchestration-CiOrchestrationServicePipelineProcessingSidekiqSLOViolation",
+          "title": "CiOrchestrationServicePipelineProcessingSidekiqSLOViolation"
+        },
+        {
+          "id": "gitlab-ci-runners-CiRunnersServiceQueuingQueriesDurationApdexSLOViolation",
+          "title": "CiRunnersServiceQueuingQueriesDurationApdexSLOViolation"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Inconsistent logging collection and forwarding to monitoring system -- SLO at risk.",
+      "gold_runbook_id": "gitlab-artifact-registry-gke-README",
+      "top3": [
+        {
+          "id": "gitlab-ci-orchestration-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ci-orchestration-CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation",
+          "title": "CiOrchestrationServiceJobInfraFailureRatioErrorSLOViolation"
+        },
+        {
+          "id": "gitlab-ci-orchestration-CiOrchestrationServicePipelineProcessingSidekiqSLOViolation",
+          "title": "CiOrchestrationServicePipelineProcessingSidekiqSLOViolation"
+        }
+      ],
+      "hit": false
+    },
+    {
+      "query": "GitOps workflow not properly synced with Kubernetes cluster. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-argocd-README",
+      "top3": [
+        {
+          "id": "gitlab-argocd-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-cells-amp",
+          "title": "amp"
+        },
+        {
+          "id": "gitlab-api-README",
+          "title": "README"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Failed to generate filter rules to exclude specific organizations from migration.. Threshold breached, escalating to on-call.",
+      "gold_runbook_id": "gitlab-cells-dms-source-filters",
+      "top3": [
+        {
+          "id": "gitlab-cells-dms-source-filters",
+          "title": "dms-source-filters"
+        },
+        {
+          "id": "gitlab-cells-auto-deploy",
+          "title": "auto-deploy"
+        },
+        {
+          "id": "gitlab-cells-debugging",
+          "title": "debugging"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "Database size exceeds 95% of its maximum quota, preventing writes and updates to the etcd cluster. -- SLO at risk.",
+      "gold_runbook_id": "promop-etcdBackendQuotaLowSpace",
+      "top3": [
+        {
+          "id": "promop-etcdBackendQuotaLowSpace",
+          "title": "etcdBackendQuotaLowSpace"
+        },
+        {
+          "id": "promop-etcdHighFsyncDurations",
+          "title": "etcdHighFsyncDurations"
+        },
+        {
+          "id": "promop-etcdGRPCRequestsSlow",
+          "title": "etcdGRPCRequestsSlow"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "API read-only due to lack of cluster members -- SLO at risk.",
+      "gold_runbook_id": "promop-etcdInsufficientMembers",
+      "top3": [
+        {
+          "id": "promop-etcdNoLeader",
+          "title": "etcdNoLeader"
+        },
+        {
+          "id": "promop-etcdInsufficientMembers",
+          "title": "etcdInsufficientMembers"
+        },
+        {
+          "id": "gitlab-ci-orchestration-CiOrchestrationServiceJobQueueDurationApdexSLOViolation",
+          "title": "CiOrchestrationServiceJobQueueDurationApdexSLOViolation"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "applications fail or data loss due to network interface changes on a node",
+      "gold_runbook_id": "promop-NodeNetworkInterfaceFlapping",
+      "top3": [
+        {
+          "id": "promop-NodeNetworkInterfaceFlapping",
+          "title": "NodeNetworkInterfaceFlapping"
+        },
+        {
+          "id": "promop-KubeAPIDown",
+          "title": "KubeAPIDown"
+        },
+        {
+          "id": "promop-etcdHighFsyncDurations",
+          "title": "etcdHighFsyncDurations"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "service degraded/unavailable due to misconfigured pods on wrong nodes -- SLO at risk.",
+      "gold_runbook_id": "promop-KubeDaemonSetMisScheduled",
+      "top3": [
+        {
+          "id": "promop-KubeDaemonSetNotScheduled",
+          "title": "KubeDaemonSetNotScheduled"
+        },
+        {
+          "id": "promop-KubeDeploymentGenerationMismatch",
+          "title": "KubeDeploymentGenerationMismatch"
+        },
+        {
+          "id": "promop-KubeDaemonSetMisScheduled",
+          "title": "KubeDaemonSetMisScheduled"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "ALERT: Multiple alerts are being notified without being sent due to pods crashing too quickly",
+      "gold_runbook_id": "promop-AlertmanagerClusterCrashlooping",
+      "top3": [
+        {
+          "id": "promop-AlertmanagerClusterCrashlooping",
+          "title": "AlertmanagerClusterCrashlooping"
+        },
+        {
+          "id": "promop-etcdGRPCRequestsSlow",
+          "title": "etcdGRPCRequestsSlow"
+        },
+        {
+          "id": "promop-CPUThrottlingHigh",
+          "title": "CPUThrottlingHigh"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "High CPU Utilization during E2E Testing",
+      "gold_runbook_id": "gitlab-charts-e2e-testing-README",
+      "top3": [
+        {
+          "id": "gitlab-charts-e2e-testing-README",
+          "title": "README"
+        },
+        {
+          "id": "gitlab-ai-gateway-AiGatewayServiceRunwayIngressTrafficCessationRegional",
+          "title": "AiGatewayServiceRunwayIngressTrafficCessationRegional"
+        },
+        {
+          "id": "promop-etcdGRPCRequestsSlow",
+          "title": "etcdGRPCRequestsSlow"
+        }
+      ],
+      "hit": true
+    },
+    {
+      "query": "slow etcd gRPC requests -- SLO at risk.",
+      "gold_runbook_id": "promop-etcdGRPCRequestsSlow",
+      "top3": [
+        {
+          "id": "promop-etcdGRPCRequestsSlow",
+          "title": "etcdGRPCRequestsSlow"
+        },
+        {
+          "id": "promop-etcdHighNumberOfFailedGRPCRequests",
+          "title": "etcdHighNumberOfFailedGRPCRequests"
+        },
+        {
+          "id": "promop-etcdHighFsyncDurations",
+          "title": "etcdHighFsyncDurations"
+        }
+      ],
+      "hit": true
+    }
+  ]
+}

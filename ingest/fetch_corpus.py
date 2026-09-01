@@ -120,9 +120,12 @@ def fetch_gitlab_runbooks(limit: int) -> list[Runbook]:
             continue
         title = Path(path).stem
         service = path.split("/")[1] if path.count("/") >= 1 else "general"
+        # id must be unique across the whole path, not just the filename -- gitlab-com/runbooks
+        # has one README.md per service directory, so "gitlab-README" alone collides badly
+        # (found empirically: 21 distinct docs collapsed into 1 during ingest).
         runbooks.append(
             Runbook(
-                id=f"gitlab-{title}",
+                id=f"gitlab-{service}-{title}",
                 title=title,
                 body=body,
                 service=service,

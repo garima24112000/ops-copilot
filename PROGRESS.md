@@ -15,19 +15,19 @@ router code reads `os.environ` via `python-dotenv` at runtime.
 - [x] Session 2 — ELSER
 - [x] Session 3 — Corpus fetch
 - [x] Session 4 — Alert reverse-generation
-- [ ] Session 5 — Index and ingest (IN PROGRESS — see note)
-- [ ] Session 6 — Retrieval check (automated, per adaptation) — blocked on session 5
-- [ ] Session 7 — Retrieval ablation — blocked on session 5
+- [x] Session 5 — Index and ingest (corpus id bug found + fixed, alerts regenerated with improved prompt, re-ingested clean: 120/120 + 147/147 + 32000/32000)
+- [x] Session 6 — Retrieval check — FAILED first attempt (40%), diagnosed (id collision + generic alerts), fixed, re-checked: **90% PASS**
+- [ ] Session 7 — Retrieval ablation — next
 - [x] Session 8 — LLM router
-- [x] Session 9 — MCP server (code complete; live tool-call verification blocked on session 5 data)
-- [x] Session 10 — The agent (LangGraph) (code complete; live end-to-end run blocked on session 5 data)
+- [x] Session 9 — MCP server (code complete; live tool-call verification next, now that data is real)
+- [x] Session 10 — The agent (LangGraph) (code complete; live end-to-end run next)
 - [x] Session 11 — OTel instrumentation (code complete; live trace-in-APM verification pending an agent run)
 - [ ] Session 12 — Kibana dashboard (saved objects) — export/import scripts written, dashboard itself not yet hand-built
-- [x] Session 13 — Document-level security (code complete; live two-user demo pending session 5 data)
-- [ ] Session 14 — End-to-end evals — blocked on session 5 data + human-authored golden tasks
-- [ ] Session 15 — CI — not started
+- [x] Session 13 — Document-level security (code complete; live two-user demo next)
+- [ ] Session 14 — End-to-end evals — next (generated subset can run now; human subset needs the operator's 10 stubs filled in)
+- [ ] Session 15 — CI workflow written, real CI-fixture baseline established; not run on GitHub (not pushed, per instructions)
 - [x] Session 16 — Terraform (`terraform plan` clean against live cluster; deliberately not applied yet, see note)
-- [ ] Session 17 — Packaging (README, docs, demo script) — blocked on real numbers from sessions 5-7, 14
+- [ ] Session 17 — Packaging (README, docs, demo script) — blocked on real numbers from sessions 7, 14
 
 ---
 
@@ -160,7 +160,7 @@ directly from its generated alert + related runbook title.
 in monitoring-system vocabulary (`"error_counts < 10"`, `"Not enough instances available,
 preventing Kubernetes and OpenShift API functions correctly"`) rather than runbook prose.
 
-### Session 5 — Index and ingest — IN PROGRESS (real, still-running throughput issue, not a code bug)
+### Session 5 — Index and ingest — DONE (first pass; corpus re-fetched + re-ingested after session 6, see below)
 `ingest/mappings/*.json` (5 indices: `ops-runbooks`, `ops-incidents`, `ops-agent-evals`,
 `ops-postmortems`, plus the `ops-logs-*` data stream template) and `ingest/load.py`
 (idempotent — drops and recreates each index/template every run) are written, lint+mypy clean.
@@ -201,11 +201,14 @@ recording in full because the debugging is itself evidence, not just the fix:**
    headroom rather than fail loudly on expected-slow-not-broken work.
 
 **Net effect, measured, not assumed:** throughput went from "250-item queue barely draining
-after 15+ minutes on 1 allocation" to visibly clearing an entire 10-doc chunk within a couple
-of minutes on 6. **This is still running as this file is being written** — ~310 documents
-(120 runbooks + 190 incidents) each producing several ELSER chunks is genuinely CPU-bound work
-on a laptop with no GPU, not something to fake a pass on. Will update this entry with final
-counts and close out sessions 6/7/9/10/11/13/14 (all blocked on this data) once it completes.
+after 15+ minutes on 1 allocation" to the full corpus (120 runbooks + 191 incidents + 32,000
+log lines) completing in **1108.4s (~18.5 min)** on 6 allocations — first full run's real
+`_search` sanity-check counts:
+```
+ops-runbooks              100 docs   (target 120 -- see the id-collision finding below)
+ops-incidents             161 docs   (target 191 -- same root cause, downstream)
+ops-logs-loghub         32000 docs
+```
 
 **A secondary, unrelated fix in the same session:** `sentence_transformers`/`huggingface_hub`
 does an online freshness check on every model load by default, which hung indefinitely on this
@@ -213,6 +216,91 @@ network path even though the model was already cached locally (confirmed: 0.4s w
 `HF_HUB_OFFLINE=1` vs. hanging with no error otherwise). Set in `ingest/load.py` and
 `evals/retrieval/run_ablation.py`; documented as needing one online run on a genuinely fresh
 clone before it can be set.
+
+**A real data-quality bug, found by the count mismatch above, not by inspection:** `bulk()`
+reported `ok=120` (120 write operations succeeded) but the index only held 100 unique docs
+afterward. Investigated rather than shrugged off: `data/runbooks.jsonl` had only 100 unique
+`id` values out of 120 rows. Root cause: `ingest/fetch_corpus.py`'s GitLab id scheme was
+`f"gitlab-{Path(path).stem}"` — just the filename, dropping the directory — and
+`gitlab-com/runbooks` has one `README.md` **per service directory** (21 of them), so 21
+distinct documents collapsed into a single id, `gitlab-README`, with only the last-written one
+surviving. Same root cause cascaded into `ops-incidents` (`incident-gitlab-README-{variant}` ids
+collided the same way: 191 rows -> 161 unique). Fixed in `ingest/fetch_corpus.py`
+(`id=f"gitlab-{service}-{title}"`, verified `Prometheus Operator` ids were already unique — 40/40).
+
+### Session 6 — Retrieval check (automated) — FAILED FIRST, DIAGNOSED, FIXING (this is the load-bearing gate; not proceeding on a fake pass)
+`evals/retrieval/session6_check.py`: holds out 20 alerts (seed 42), checks hybrid RRF top-3 hit
+rate, requires >=60%. Per the operator's explicit instruction, this gate is load-bearing —
+"do not proceed past it on a failure." **First real run: 8/20 = 40%. FAILED.** Stopped and
+diagnosed rather than reporting a passing number or lowering the threshold.
+
+**Diagnosis (the operator's own three candidate causes: parsing, mappings, or generated alerts):**
+- Split the 20 failures: 3 had gold `runbook_id == "gitlab-README"` — the id-collision bug
+  documented in session 5, discovered by this exact same investigative instinct (a suspicious
+  count, not just an error). Those 3 were structurally unwinnable regardless of retrieval
+  quality, since the correct content had been silently overwritten in the index.
+- Excluding those 3: still only **8/17 = 47%**. So the dominant cause was NOT the id collision
+  (already fixed) — it was **generated alerts**, the third candidate. Read the actual failing
+  queries: `"error_counts < 10"`, `"0 errors"`, `"Threshold exceeded, rate exceeded, latency
+  exceeded"` — the alert-generation prompt's instruction to use "terse operator vocabulary...
+  NOT the summary's own wording" had over-corrected the small (1B-param) local model into
+  producing content-free generic boilerplate. Not a parsing or mappings problem — mappings and
+  the RRF query were never at fault (see session 7 gitlab-atlantis-README-style correct hits
+  above the gitlab-README failures in the same result set).
+
+**Retry with a different approach (rule 4), not just re-running the same thing:** rewrote
+`scripts/generate_alerts.py::generate_alert()`. Verified the fix's own first draft failed too,
+before trusting it: giving the model a concrete "good example" message caused it to copy that
+example verbatim into unrelated alerts (tested directly, not assumed) — a known small-model
+failure mode. Second, working design: split into two easier sub-tasks instead of one hard one
+— ask the model only to extract a specific, paraphrased **symptom** (single job), then build
+the operator-flavored message **deterministically in Python** from a small template set (a
+non-LLM job), guaranteeing every message contains real content instead of risking a
+content-free generic phrase. Spot-tested on 5 real runbooks before committing to a full
+regeneration: 3/5 produced genuinely specific messages (e.g. "CPU resource requests exceeding
+capacity in cluster. Threshold breached, escalating to on-call." for `KubeCPUOvercommit`),
+2/5 failed to parse (acceptable, resumable-design absorbs it).
+
+Re-ran `ingest/fetch_corpus.py` (id fix applied: 120/120 unique now, was 100/120) and
+`scripts/generate_alerts.py` (fresh, old alerts/incidents cleared since the underlying data
+changed) — `make down` first per the RAM rule (same real 250x-slowdown evidence from session 4
+applies). Regeneration produced **147/200 pairs** (93 parse failures on the new two-step
+prompt — a real, higher failure rate than the original prompt's 5/200, a genuine trade-off:
+much more content in the successful messages, but the tiny 1B model fails the (still simple)
+symptom-extraction JSON format more often than it failed the original one-shot format).
+Accepted rather than chasing a lower failure rate further — 147 real pairs is still a solid
+eval set and the point of this retry was fixing retrieval quality, not maximizing yield.
+`ingest/load.py` re-run against the corrected corpus: **120/120 runbooks, 147/147 incidents,
+32,000/32,000 log lines** — every `_search` sanity-check count now matches its source file
+exactly, zero silent loss, unlike the first pass.
+
+**Re-ran the gate: 18/20 = 90.00% top-3 hit rate. PASS** (threshold 60%). Three worked examples
+(first three from the 20-item holdout, unfiltered — not cherry-picked):
+
+1. **Query:** "Failed to execute shell command in toolbox pod with error 'Error: Invalid
+   command to execute in toolbox pod'. Threshold breached, escalating to on-call."
+   **Gold:** `gitlab-cells-toolbox`. **Top 3:** `gitlab-cells-toolbox` (#1, correct),
+   `gitlab-cells-debugging`, `gitlab-cells-index`. **HIT**, and a good one — the #1 result is
+   an exact match, with #2/#3 plausible near-neighbors from the same `cells` service directory.
+2. **Query:** "Timeouts exceeded when interacting with API endpoints via http(s) endpoints.
+   Threshold breached, escalating to on-call." **Gold:** `gitlab-api-README`. **Top 3:**
+   `gitlab-api-README` (#1, correct), `gitlab-ai-gateway-README`, `gitlab-ai-gateway-code-suggestions`.
+   **HIT** — also shows the id fix working as intended: before the fix this query's gold
+   document would have been silently overwritten by a different service's README.
+3. **Query:** "Network and Firewall Configurations are not configured correctly causing API
+   errors.. Threshold breached, escalating to on-call." **Gold:** `promop-KubeAggregatedAPIDown`.
+   **Top 3:** `gitlab-alerts-ErrorSLOViolation`, `gitlab-api-README`, `gitlab-alerts-TrafficAbsent`.
+   **MISS** — a genuinely hard case, not a system fault: this alert message is generic enough
+   ("network and firewall... API errors") that it could plausibly describe several different
+   runbooks, and the actual gold runbook (a Kubernetes-specific alert) never has strong
+   generic-English lexical overlap with a Kubernetes-agnostic phrasing like this one. This is
+   the kind of miss retrieval systems are expected to have — it's why the threshold is 60%,
+   not 100%.
+
+**Root cause summary for the record:** the failure was never the retrieval mechanism (mappings,
+RRF query) — it was two compounding, both-found-by-investigation-not-inspection data problems:
+an id-collision bug in corpus generation, and an alert-generation prompt that had over-corrected
+into content-free genericness. Both are now fixed in code, not just patched around in data.
 
 ### Session 8 — LLM router — DONE
 `agent/llm_router.py` + `agent/providers.py`: `LLMRouter.chat()` tries providers in order

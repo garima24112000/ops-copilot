@@ -80,21 +80,36 @@ def summarize(runbook_body: str) -> str:
 ALERT_JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
+MESSAGE_TEMPLATES = [
+    "{symptom}. Threshold breached, escalating to on-call.",
+    "ALERT: {symptom}",
+    "{symptom} -- SLO at risk.",
+    "{symptom}",
+    "Paging on-call: {symptom}",
+]
+
+
 def generate_alert(summary: str, variant_seed: int) -> dict[str, Any] | None:
+    """A small (1B) local model can't reliably juggle "paraphrase this AND make it terse AND
+    make it operator-flavored AND don't just copy an example" all at once -- tried that
+    (verified empirically, see PROGRESS.md session 6: it started copying the prompt's own
+    example verbatim into unrelated alerts, or returned nothing at all). Split into two
+    easier sub-tasks instead: ask the model only to extract a specific, paraphrased symptom
+    (one job), then build the operator-flavored message deterministically in Python from a
+    small template set (a second, non-LLM job) -- guarantees every alert message actually
+    contains the runbook's real symptom instead of risking a content-free generic phrase."""
     severity_hint = SEVERITIES[variant_seed % len(SEVERITIES)]
     prompt = (
-        "You are a monitoring system generating a page for an on-call engineer. "
-        "Based ONLY on the incident summary below (never seen the original document), write "
-        "a realistic alert as a single JSON object with exactly these keys: "
-        '"service" (short lowercase-kebab name), "severity" (one of critical/warning/info, '
-        f'lean toward "{severity_hint}" unless it does not fit), "metric" (a short metric '
-        'name a monitoring system would emit), "message" (under 200 chars, in terse operator '
-        "vocabulary: thresholds, rates, latency, restarts, error counts -- NOT the summary's "
-        "own wording).\n\n"
-        f"INCIDENT SUMMARY:\n{summary}\n\n"
-        "Respond with ONLY the JSON object, nothing else."
+        "Extract the SPECIFIC symptom or failure mode from this incident summary, in your own "
+        "words, as a short phrase (8-20 words). Name the actual component/metric/behavior "
+        "that's wrong -- do not write a generic phrase like 'errors detected' or 'threshold "
+        "exceeded' with nothing else. Also give a short lowercase-kebab service name and a "
+        "short metric name a monitoring system would emit.\n\n"
+        "Respond with ONLY a JSON object: "
+        '{"service": "...", "metric": "...", "symptom": "..."}\n\n'
+        f"INCIDENT SUMMARY:\n{summary}"
     )
-    raw = ollama_generate(prompt, max_tokens=200)
+    raw = ollama_generate(prompt, max_tokens=150)
     m = ALERT_JSON_RE.search(raw)
     if not m:
         return None
@@ -102,12 +117,18 @@ def generate_alert(summary: str, variant_seed: int) -> dict[str, Any] | None:
         payload: dict[str, Any] = json.loads(m.group(0))
     except json.JSONDecodeError:
         return None
-    required = {"service", "severity", "metric", "message"}
-    if not required.issubset(payload.keys()):
+    required = {"service", "metric", "symptom"}
+    if not required.issubset(payload.keys()) or not payload["symptom"].strip():
         return None
-    if payload["severity"] not in SEVERITIES:
-        payload["severity"] = severity_hint
-    return payload
+
+    template = MESSAGE_TEMPLATES[variant_seed % len(MESSAGE_TEMPLATES)]
+    message = template.format(symptom=payload["symptom"].strip())
+    return {
+        "service": payload["service"],
+        "severity": severity_hint,
+        "metric": payload["metric"],
+        "message": message[:200],
+    }
 
 
 def load_existing(path: Path) -> set[str]:

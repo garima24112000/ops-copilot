@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from agent.llm_router import ChatResult, LLMRouter, ProviderError, RateLimitError, ToolCall
+from agent.llm_router import ChatResult, LLMRouter, Message, ProviderError, RateLimitError, ToolCall, ToolSpec
 
 
 class FakeProvider:
@@ -16,7 +17,7 @@ class FakeProvider:
         self.rate_limited = rate_limited
         self.calls = 0
 
-    def chat(self, model, messages, tools):
+    def chat(self, model: str, messages: list[Message], tools: list[ToolSpec] | None) -> ChatResult:
         self.calls += 1
         if self.rate_limited:
             raise RateLimitError(f"{self.name} is rate limited", retry_after_s=9999)
@@ -30,7 +31,7 @@ class FakeProvider:
         )
 
 
-def _router(tmp_path: Path, providers) -> LLMRouter:
+def _router(tmp_path: Path, providers: list[Any]) -> LLMRouter:
     return LLMRouter(
         providers,
         mode="live",

@@ -15,7 +15,7 @@ retrieves them), and it's also the agent's observability backend (every LLM call
 lands in Elastic APM as OpenTelemetry GenAI spans, queried with the same stack the agent
 itself queries).
 
-**3-minute walkthrough:** _(link to be added)_
+**3-minute walkthrough:** https://youtu.be/Z2MGZ2Cy3lU
 
 ## Architecture
 
@@ -336,4 +336,4 @@ wrong — it's available locally under the same trial license this project alrea
 
 Shot-by-shot script for a 3-minute screen recording: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
 
-**3-minute walkthrough:** _(link to be added)_
+**3-minute walkthrough:** https://youtu.be/Z2MGZ2Cy3lU
